@@ -110,7 +110,7 @@ Acceptance criteria sit in the Functional Requirements below (FR-n).
 
 #### Config tab
 
-Screen design: [Config](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Config)
+Screen design: [Config](screens/screen-0-config.png)
 
 ![Config screen: Jira connection, project key with Fetch from Jira, board and team, issue types, field mapping, team rules, SP to MD bands, locations](screens/screen-0-config.png)
 
@@ -126,7 +126,7 @@ Screen design: [Config](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboa
 
 #### Tab 1 - Sprint Tickets
 
-Screen design: [Tab 1 · Sprint Tickets](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Tickets)
+Screen design: [Tab 1 · Sprint Tickets](screens/screen-1-sprint-tickets.png)
 
 ![Tab 1 Sprint Tickets: sprint facts, change list, flags, Contributor dropdown, ticket table with MD per role](screens/screen-1-sprint-tickets.png)
 
@@ -139,7 +139,7 @@ Screen design: [Tab 1 · Sprint Tickets](https://claude.ai/artifact/DMiZHX8VHaXQ
 
 #### Tab 2 - Resources & Leave
 
-Screen design: [Tab 2 · Resources & Leave](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Resources)
+Screen design: [Tab 2 · Resources & Leave](screens/screen-2-resources-leave.png)
 
 ![Tab 2 Resources and Leave: resource table, leave grid, office holidays in this sprint and one-off form](screens/screen-2-resources-leave.png)
 
@@ -151,7 +151,7 @@ Screen design: [Tab 2 · Resources & Leave](https://claude.ai/artifact/DMiZHX8VH
 
 #### Tab 3 - Capacity
 
-Screen design: [Tab 3 · Capacity](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Capacity)
+Screen design: [Tab 3 · Capacity](screens/screen-3-capacity.png)
 
 ![Tab 3 Capacity: gross to net strip and per-resource table](screens/screen-3-capacity.png)
 
@@ -161,7 +161,7 @@ Screen design: [Tab 3 · Capacity](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd
 
 #### Tab 4 - Planning Calendar
 
-Screen design: [Tab 4 · Planning Calendar](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Main)
+Screen design: [Tab 4 · Planning Calendar](screens/screen-4-planning-calendar.png)
 
 ![Tab 4 Planning Calendar: verdict banner, cards in days, After sprint end zone, suggested rebalance](screens/screen-4-planning-calendar.png)
 
@@ -175,7 +175,7 @@ Screen design: [Tab 4 · Planning Calendar](https://claude.ai/artifact/DMiZHX8VH
 
 #### Access and publishing
 
-Screen design: [Published sprint page](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Published); Save plan and Publish sit in every tab's header
+Screen design: [Published sprint page](screens/screen-5-published-page.png); Save plan and Publish sit in every tab's header
 
 ![Published sprint page: verdict and load per person, no leave detail](screens/screen-5-published-page.png)
 
@@ -236,7 +236,7 @@ Worked example: a sprint from 3 Aug to 21 Aug has 15 working days. With 5 resour
 
 ### User Experience
 
-All six screens are on the [design canvas](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY), built with the sample Sprint 26 (4-22 Jan 2027, Squad Orion) whose numbers follow the Calculation Rules: [Config](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Config), [Sprint Tickets](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Tickets), [Resources & Leave](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Resources), [Capacity](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Capacity), [Planning Calendar](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Main), [Published sprint page](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Published). Where a screen and this PRD disagree, the PRD wins.
+All six screens are in the [screens folder](screens/), built with the sample Sprint 26 (4-22 Jan 2027, Squad Orion) whose numbers follow the Calculation Rules: [Config](screens/screen-0-config.png), [Sprint Tickets](screens/screen-1-sprint-tickets.png), [Resources & Leave](screens/screen-2-resources-leave.png), [Capacity](screens/screen-3-capacity.png), [Planning Calendar](screens/screen-4-planning-calendar.png), [Published sprint page](screens/screen-5-published-page.png). Where a screen and this PRD disagree, the PRD wins.
 
 - The tabs run in working order: Config, Sprint Tickets, Resources & Leave, Capacity, Planning Calendar. Tabs 1-4 are disabled until Config passes the connection test. Inputs are edited in Config and Tab 2; Tab 3 only shows the result.
 - Tab 4 follows the Bloompeak layout in the reference screenshot: sprint progress bar with Planned / Done / Target counts, resource rows with load / capacity badges (green within capacity, red above), ticket cards sized by days, Today and Sprint End markers.
@@ -477,7 +477,7 @@ No questions open at v0.6. New ones from the pilot SM or the Confluence admin go
 - Reference product: [Sprint Capacity Planner for Jira (Bloompeak)](https://bloompeak.atlassian.net/wiki/spaces/DOC/pages/2651619334/Sprint+Capacity+Planner+for+jira)
 - Reference screenshot of the Bloompeak capacity calendar (supplied with the brief)
 - Problem Statement - add link
-- [Design Specs: output design canvas, all five tabs and the published page](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY)
+- [Design Specs: screen designs of all five tabs and the published page](screens/)
 - Technical Design (after platform decision) - add link
 
 ### Glossary
