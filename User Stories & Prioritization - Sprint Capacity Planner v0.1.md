@@ -2,7 +2,7 @@
 
 Nov 19, 2026 · @Shripathi Raman R
 
-Version 0.1, reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.5](https://claude.ai/artifact/Kg43FNpd8owHwh1pNzRmAb), grouped in six epics that follow the tabs. Each epic links to its screen on the design canvas (https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
+Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.6](https://claude.ai/artifact/Kg43FNpd8owHwh1pNzRmAb), grouped in six epics that follow the tabs. Each epic links to its screen on the design canvas (https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
 
 ## Story index
 
@@ -11,7 +11,7 @@ Version 0.1, reviewed by 3 Scrum Masters. 24 user stories cover every functional
 | ID | Story | Persona | PRD requirement | PRD priority | MoSCoW | Size |
 | --- | --- | --- | --- | --- | --- | --- |
 | US-01 | Connect to Jira and test the link | SM | FR-1 | P0 | Must | S |
-| US-02 | Fetch project, boards, team, sprints and issue types | SM | FR-2, FR-3 | P0 | Must | M |
+| US-02 | Type the project key and fetch boards, team, sprints and issue types | SM | FR-2, FR-3 | P0 | Must | M |
 | US-03 | Map Jira fields | SM | FR-4 | P0 | Must | M |
 | US-04 | Set SP-to-MD bands and BA/Dev split | SM | FR-5, FR-6 | P0 | Must | S |
 | US-05 | Set working week, ceremony % and load thresholds | SM | FR-7, FR-8 | P0 | Must | S |
@@ -53,44 +53,49 @@ Screen design: [Config](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboa
 
 **As a** Scrum Master, **I want** to test the page's connection to Jira, **so that** I know data will load before I start planning.
 
-**Context.** The planner reads Jira through the Confluence-Jira application link, as the Release Impact Dashboard does; no API token is stored (FR-1).
+**Context.** FR-1 (PRD v0.6). The planner reads Jira through Confluence's own link to Jira, as the Release Impact admin tool does: Confluence lists its linked Jira servers and the link is taken from that list, so no API token and no link ID are stored or typed. Test connection checks the link and the user only and needs no project; the project is checked by Fetch from Jira (US-02).
 
 **Acceptance criteria**
 
-- **AC-1 Success** — **Given** the application link is configured and I am authorised on it, **when** I click Test connection, **then** I see "Connected as \<my name>" and Tabs 1-4 become available.
-- **AC-2 Not authorised** — **Given** I have not yet authorised the link, **when** I test, **then** I see a message saying so with the step to authorise, and Tabs 1-4 stay disabled.
-- **AC-3 No project permission** — **Given** I lack Browse Projects on the selected project, **when** I test, **then** the message names the missing permission.
-- **AC-4 Link missing** — **Given** no application link exists, **when** I test, **then** the message says the link is not configured and whom to contact.
+- **AC-1 Success** — **Given** Confluence is linked to Jira and I am authorised on the link, **when** I click Test connection, **then** I see "Connected as \<my name>" and Tabs 1-4 become available.
+- **AC-2 Not authorised** — **Given** I have not yet authorised the link, **when** I test, **then** I see a message saying so with an Allow access link (or the step to authorise), and Tabs 1-4 stay disabled.
+- **AC-3 Link missing** — **Given** Confluence is not linked to any Jira, **when** I test, **then** the message says the link is not configured and whom to contact, and Tabs 1-4 stay disabled.
+- **AC-4 Proxy blocked** — **Given** Confluence refuses to pass calls to Jira, **when** I test, **then** the message says so and whom to contact, and Tabs 1-4 stay disabled.
 
 **Design notes.** Green status box with the user's name; red box with the reason (see the Config screen on the design canvas).
 
-**Technical notes.** `GET /rest/api/2/myself` through the link proxy; code in `scp-jira.js`.
+**Technical notes.** `GET <ctx>/rest/jiraanywhere/1.0/servers` to find the linked Jira, then `GET /rest/api/2/myself` through the link proxy; code in `scp-jira.js`. Runs on its own when the page loads.
 
-**Dependencies.** Application link authorised for planner users (Confluence admin, in place).
+**Dependencies.** Confluence linked to jira.group.bank and the link authorised for planner users (Confluence admin, in place).
 
-**Out of scope.** Any write to Jira.
+**Out of scope.** Any write to Jira. Checking the project (US-02).
 
-### US-02 · Fetch project, boards, team, sprints and issue types
+### US-02 · Type the project key and fetch boards, team, sprints and issue types
 
 | ID | Persona | Priority | Epic | Size |
 | --- | --- | --- | --- | --- |
 | US-02 | Scrum Master | P0 · Must | Config | M |
 
-**As a** Scrum Master, **I want** boards, Team values, issue types and sprints fetched as soon as I pick a project, **so that** I never type them by hand.
+**As a** Scrum Master, **I want** to type our project key and fetch its boards, Team values, issue types and sprints with one click, **so that** I never scroll a long project list or type the rest by hand.
 
-**Context.** FR-2 and FR-3. Only the issue types I tick are planned, so sub-tasks and epics don't inflate the load.
+**Context.** FR-2 and FR-3 (PRD v0.6). The project key is a text field, upper-cased as typed, with a Fetch from Jira button beside it. Fetch also checks that I can read the project (moved here from US-01). Only the issue types I tick are planned, so sub-tasks and epics don't inflate the load.
 
 **Acceptance criteria**
 
-- **AC-1 Auto-fetch** — **Given** I am connected, **when** I select a project, **then** its boards, Team values, issue types and sprints load without further input.
+- **AC-1 Fetch** — **Given** I am connected and type PCAP, **when** I click Fetch from Jira, **then** its boards (a scrum board pre-selected), Team values, issue types and sprints load.
 - **AC-2 Sprint details** — **Given** sprints have loaded, **when** I view them, **then** each shows name, state (active, future, closed), start and end date.
 - **AC-3 Issue types** — **Given** I untick Bug, **when** Tab 1 loads, **then** no Bug tickets appear.
+- **AC-4 Not found or no permission** — **Given** the key does not exist or I lack Browse Projects on it, **when** I click Fetch from Jira, **then** the message names the key and says it was not found or I lack Browse Projects on it, and nothing loads.
+- **AC-5 Key edited** — **Given** I fetched PCAP, **when** I change the key without fetching again, **then** board, Team, issue types and sprints are marked stale and Save config is blocked until I fetch.
+- **AC-6 Page load** — **Given** a key is saved in the config, **when** the page loads, **then** the connection test and the fetch run without a click.
 
-**Technical notes.** Agile board and sprint endpoints, `project/{key}` for issue types (PRD Integration Points).
+**Design notes.** Project key field and Fetch from Jira button at the top of Project & team, then Board and Team (squad) dropdowns (Config screen on the design canvas).
 
-**Dependencies.** US-01.
+**Technical notes.** `project/{key}` for the check and issue types, Agile board and sprint endpoints, JQL value suggestions for Team values (PRD Integration Points). Jira answers 404 both for a missing key and for one the user cannot browse, so AC-4 cannot say which.
 
-**Out of scope.** Choosing several projects or teams on one page.
+**Dependencies.** US-01; Team field mapped (US-03) for Team values.
+
+**Out of scope.** Picking the project from a list. Choosing several projects or teams on one page.
 
 ### US-03 · Map Jira fields
 
@@ -602,7 +607,7 @@ ICE, MoSCoW and Weighted Scoring ran. **RICE was excluded:** reach is the same f
 | 6 | US-08 Ticket table | 9 | 9 | 7 | 567 |
 | 6 | US-12 Resources | 9 | 9 | 7 | 567 |
 | 9 | US-05 Week, ceremony, thresholds | 7 | 8 | 9 | 504 |
-| 10 | US-02 Auto-fetch | 8 | 8 | 7 | 448 |
+| 10 | US-02 Project key and fetch | 8 | 8 | 7 | 448 |
 | 10 | US-09 Flags | 7 | 8 | 8 | 448 |
 | 12 | US-20 Save plan | 9 | 8 | 6 | 432 |
 | 13 | US-13 Leave grid | 8 | 8 | 6 | 384 |

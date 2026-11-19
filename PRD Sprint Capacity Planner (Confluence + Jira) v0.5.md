@@ -1,6 +1,6 @@
 # PRD: Sprint Capacity Planner (Confluence + Jira)
 
-Nov 19, 2026 · @Shripathi Raman R · Status: Draft v0.5
+Nov 19, 2026 · @Shripathi Raman R · Status: Draft v0.6
 
 ## Overview
 
@@ -12,7 +12,7 @@ Scrum Masters commit sprints without knowing whether the people named on the tic
 
 A Sprint Capacity Planner embedded in a Confluence page, fed live from Jira. It has five tabs:
 
-1. **Config**: connect to Jira, test the connection, pick project, team/squad and issue types, map fields, define the Story Point to Man-Day (MD) bands and the BA/Dev split.
+1. **Config**: connect to Jira and test the connection, type the project key and fetch its boards, team/squad values, issue types and sprints, map fields, define the Story Point to Man-Day (MD) bands and the BA/Dev split.
 2. **Sprint Tickets**: the selected future sprint's tickets with Dev, BA, Story Points and the derived Total, Dev and BA MD.
 3. **Resources & Leave**: the people on the sprint with role, location and availability %, a day-by-person leave grid, and the office holidays that fall in this sprint.
 4. **Capacity**: read-only calculation of gross capacity from sprint dates and resources, minus office holidays, personal leave, ceremonies and availability, giving net capacity per person and per role.
@@ -61,7 +61,7 @@ Baselines do not exist yet. They are measured manually over the two sprints befo
 | ID | User Story | Priority |
 | --- | --- | --- |
 | US-1 | As an SM, I want to connect the page to Jira and test the connection, so that I know data will load before planning starts | P0 |
-| US-2 | As an SM, I want project, team/squad and sprints fetched automatically, so that I don't type them by hand | P0 |
+| US-2 | As an SM, I want to type the project key once and fetch its boards, team/squad values and sprints from Jira, so that I don't type them by hand | P0 |
 | US-3 | As an SM, I want to choose which issue types are planned, so that sub-tasks or epics don't inflate the load | P0 |
 | US-4 | As an SM, I want to define Story Point to MD bands and the BA/Dev split once, so that every ticket converts the same way | P0 |
 | US-5 | As an SM, I want to see each ticket's Dev, BA, SP, Total MD, Dev MD and BA MD for the sprint, so that I know the workload per role | P0 |
@@ -79,7 +79,7 @@ Acceptance criteria sit in the Functional Requirements below (FR-n).
 
 ### In Scope
 
-- Jira read through the Confluence-Jira application link (no API token), connection test, auto-fetch of boards, Team values, issue types, fields and sprints with state
+- Jira read through Confluence's own link to Jira (no API token, no link ID to set), connection test, typed project key with Fetch from Jira of boards, Team values, issue types and sprints with state, and the instance's fields for mapping
 - Configurable SP to MD bands (upper bound used) and BA/Dev split percentage (default 40 / 60)
 - One open plan per page; one page per team
 - Ticket table with derived MD per role, reload and change detection
@@ -112,10 +112,10 @@ Acceptance criteria sit in the Functional Requirements below (FR-n).
 
 Screen design: [Config](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Config)
 
-![Config screen: Jira connection, project and team, issue types, field mapping, team rules, SP to MD bands, locations](screens/screen-0-config.png)
+![Config screen: Jira connection, project key with Fetch from Jira, board and team, issue types, field mapping, team rules, SP to MD bands, locations](screens/screen-0-config.png)
 
-- FR-1: Jira (jira.group.bank) is reached through the Confluence-Jira application link, as in the Release Impact Dashboard; no API token is stored. **Test connection** calls Jira through the link and shows the connected user's name, or the failure reason: link not configured, user not yet authorised on the link, or no permission on the project.
-- FR-2: After a project is selected, the tool fetches boards, Team values, issue types and sprints automatically. Sprints show name, state (active, future, closed), start and end date.
+- FR-1: Jira (jira.group.bank) is reached through Confluence's own link to Jira, as in the Release Impact admin tool: Confluence lists its linked Jira servers and the link is taken from that list (the default Jira, or the one named in the macro's optional `jiraServer` setting). No API token and no link ID are stored or typed. **Test connection** checks the link and the user only, and needs no project: it shows the connected user's name, or the failure reason: Confluence not linked to Jira, the link proxy switched off, or the user not yet authorised on the link (with an **Allow access** link when Jira gives one). Tabs 1-4 open once it passes.
+- FR-2: The SM types the **project key** (a text field, upper-cased as typed; the project is never picked from a list) and clicks **Fetch from Jira** next to it. Fetch checks that the project can be read, then loads its boards, Team values, issue types and sprints; a scrum board is pre-selected. Sprints show name, state (active, future, closed), start and end date. If the project cannot be read, the message says the key was not found or the user lacks Browse Projects on it: Jira answers the same for both, so the tool cannot tell which. Editing the key after a fetch marks board, Team, issue types and sprints as stale, and Save config is blocked until Fetch from Jira runs again. When the page loads with a saved key, Test connection and Fetch from Jira run on their own.
 - FR-3: The SM multi-selects the issue types to plan (e.g. Story, Bug). Only those types load in Tab 1.
 - FR-4: The SM maps Jira fields: Contributor (Dev), Backup Assignee (BA), Story Points and Team. Contributor and Backup Assignee may be single or multi-user pickers (see FR-32). Pickers list the instance's fields with their type and show whether each is a Jira standard or custom field; the tool works with either. A field of the wrong type (e.g. text instead of user picker or number) is rejected.
 - FR-5: The SM maintains SP to MD bands: SP value, MD lower bound (exclusive), MD upper bound (inclusive). The tool always uses the upper bound: 5 SP banded above 5 up to 8 MD counts as 8 MD. Bands must ascend, not overlap, and cover every SP value the team uses; the SM configures them up to 144 SP (Fibonacci scale 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144).
@@ -264,6 +264,8 @@ All six screens are on the [design canvas](https://claude.ai/artifact/DMiZHX8VHa
 | Two SMs edit the same plan at once | Last save wins only after a warning that the plan changed since it was opened |
 | A page titled "\<Sprint> - \<Squad>" already exists in the space but was not created by this plan | Publish stops and names the existing page; nothing is overwritten. The SM renames that page or confirms a suffix such as "(plan)" |
 | Ceremony % not set in Config | Tab 3 and Tab 4 stay blocked with a message pointing to Config |
+| Project key typed wrong, or the user lacks Browse Projects on it | Fetch from Jira says the key was not found or not browsable (Jira gives the same answer for both); board, Team, issue types and sprints stay empty |
+| Project key edited after a fetch | Board, Team, issue types and sprints are marked stale; Save config is blocked until Fetch from Jira runs again |
 | Parent page "Sprint plans - \<Squad>" was renamed or moved | Publish finds it by its stored page ID, not its title; if it was deleted, Publish asks before creating a new parent |
 | Contributor or Backup Assignee holds two or more people | Planned on the first name listed by default; the SM can pick another listed person from a dropdown in Tab 1 (FR-32) |
 
@@ -274,7 +276,7 @@ The platform is settled: Confluence Data Center 10.2.14 and Jira Data Center, bu
 ### Constraints
 
 - **Delivery pattern:** an HTML macro that runs the app's JavaScript, with its CSS, JS and data JSON held as attachments on the page. No plugin install, no Forge, no separate server.
-- **Jira access:** through Confluence's application-link proxy to jira.group.bank, the same route the Release Impact readiness checklist uses. Calls run with the viewer's own Jira rights; no API token is stored.
+- **Jira access:** through Confluence's application-link proxy to jira.group.bank, the same route the Release Impact admin tool uses: the link is found from Confluence's list of linked Jira servers, so nothing is configured by hand. Calls run with the viewer's own Jira rights; no API token is stored. The proxy accepts either a relative path or Jira's full URL depending on the Confluence version; the tool tries the other form once and keeps the one that works.
 - **Page structure:** one planning page per team, restricted to SM and PO (config, capacity inputs, plan), plus one read-only page per sprint created by Publish through the Confluence REST API (POST /rest/api/content, as the publishing user). Each sprint page carries the view macro and its own snapshot attachment; the viewer's CSS and JS sit on the parent page (see File Structure), and inherits the space's view permissions.
 - **Storage = page attachments:** saving needs edit rights on the planning page. Concurrent saves by SM and PO overwrite each other unless the app checks the attachment version before writing (see Edge Cases).
 - Jira permissions: Browse Projects on the project. No edit rights are needed; the tool never writes to Jira.
@@ -304,13 +306,17 @@ The viewer files must never sit on the planning page: people outside SM and PO c
 
 ### Integration Points
 
-| Need | Jira REST endpoint (Data Center, via application link) |
+| Need | Endpoint (Data Center; Jira calls via the application-link proxy) |
 | --- | --- |
+| Which Jira is linked (Confluence) | `GET <ctx>/rest/jiraanywhere/1.0/servers` |
+| Every Jira call (Confluence proxy) | `GET <ctx>/plugins/servlet/applinks/proxy?appId={linked server id}&path={Jira REST path}` |
 | Test connection | `GET /rest/api/2/myself` |
-| Boards for a project | `GET /rest/agile/1.0/board?projectKeyOrId={key}` |
-| Sprints with state, dates, goal | `GET /rest/agile/1.0/board/{boardId}/sprint?state=active,future,closed` |
-| Issue types of the project | `GET /rest/api/2/project/{key}` (issueTypes) |
-| Fields for mapping, standard vs custom | `GET /rest/api/2/field` (`custom` flag and `schema`) |
+| Fetch from Jira: project check and issue types | `GET /rest/api/2/project/{key}` (issueTypes; 404 when not found or not browsable) |
+| Fetch from Jira: boards for the project | `GET /rest/agile/1.0/board?projectKeyOrId={key}` |
+| Fetch from Jira: sprints with state, dates, goal | `GET /rest/agile/1.0/board/{boardId}/sprint?state=active,future,closed` |
+| Fetch from Jira: Team values | `GET /rest/api/2/jql/autocompletedata/suggestions?fieldName=cf[{teamId}]&fieldValue=` (needs Browse rights only; to be confirmed on jira.group.bank that it returns every squad) |
+| Fields for mapping, standard vs custom | `GET /rest/api/2/field` (`custom` flag and `schema`), loaded once the connection test passes |
+| Sprint after Reload | `GET /rest/agile/1.0/sprint/{sprintId}` |
 | Sprint tickets of chosen types and team | `GET /rest/agile/1.0/sprint/{sprintId}/issue?jql=issuetype in (...) AND {team} = ...&fields=summary,issuetype,{dev},{ba},{sp},{team}` |
 
 Team: a custom field, mapped in Config by its ID. The SM picks the squad value the page serves; tickets are filtered by it, and its name is used in the published sprint page title.
@@ -347,8 +353,8 @@ This section applies when a coding agent or a vendor team builds from this PRD w
 
 | Requirement | How it is verified | Who verifies |
 | --- | --- | --- |
-| FR-1 | An authorised user sees their name; a user not yet authorised on the link and a user without project permission each see their own message | QA |
-| FR-2 | For a test project, boards, teams, issue types and sprints match Jira, sprint states included | QA |
+| FR-1 | An authorised user sees their name and Tabs 1-4 open, with no link ID set anywhere; a user not yet authorised on the link, a Confluence with no Jira link and a blocked proxy each give their own message and keep Tabs 1-4 disabled | QA |
+| FR-2 | Typing a key and clicking Fetch from Jira loads boards, teams, issue types and sprints that match Jira, sprint states included; an unknown key and a key without Browse Projects each give the "not found or no permission" message; editing the key after a fetch blocks Save config until the next fetch | QA |
 | FR-3 | Deselecting Bug removes Bug tickets from Tab 1 | Automated |
 | FR-4 | A text field cannot be mapped to Contributor; a user picker can | Automated |
 | FR-5 | Overlapping or descending bands are rejected; SP 2 with band (1,3\] yields 3 MD | Automated |
@@ -437,7 +443,7 @@ The platform is settled, so Gate 1 is now about data: the Team field mapped and 
 
 ## Open Questions
 
-No questions open at v0.5. New ones from the pilot SM or the Confluence admin go here.
+No questions open at v0.6. New ones from the pilot SM or the Confluence admin go here.
 
 ### Resolved on 19 Nov 2026
 
@@ -458,6 +464,8 @@ No questions open at v0.5. New ones from the pilot SM or the Confluence admin go
 | Who can see sprint pages | Everyone with view rights on the space; accepted |
 | HTML macro on new pages | SM and PO can add the HTML macro, so Publish can create working sprint pages |
 | Where sprint pages live | Under one parent page per squad, "Sprint plans - \<Squad name>", created on first Publish |
+| Project selection (19 Nov 2026, v0.6) | Project key is a text field with a Fetch from Jira button beside it; Test connection checks the link and the user only. A project list was dropped: it is slow on a large Jira and the key is set once |
+| Jira link ID (19 Nov 2026, v0.6) | Not stored or typed: found from Confluence's list of linked Jira servers, as in the Release Impact admin tool |
 | Where resources, leave and holidays are edited | New Tab 2 Resources & Leave between Sprint Tickets and Capacity; yearly location calendars stay in Config; Capacity becomes read-only |
 | Ticket with a Dev but no BA (or the reverse) | Follow the Edge Cases table: the named half is planned with its MD, the missing half goes to Unassigned; only a ticket with no SP is 0 MD |
 | Card length on the calendar | Days the work takes at the person's net daily rate, not MD, so overload shows as cards running past the sprint end; cards are exact, only each row's finish is rounded up to half a day |
@@ -487,6 +495,7 @@ No questions open at v0.5. New ones from the pilot SM or the Confluence admin go
 
 | Version | Date | Author | Changes |
 | --- | --- | --- | --- |
+| 0.6 | 2026-11-19 | Shripathi Raman Radhakrishnan | Config: project key typed in a text field with a Fetch from Jira button (FR-2), which also does the project permission check; Test connection checks the link and the user only (FR-1); Jira link found from Confluence's linked servers, no link ID (FR-1, Constraints, Integration Points); Integration Points add the linked-server lookup, proxy route, Team values and single-sprint calls; two edge cases for a wrong or edited key; Config screen updated |
 | 0.5 | 2026-11-19 | Shripathi Raman Radhakrishnan | Screen designs added as images and links under Config, each tab and Access and publishing; User Experience lists all six screens; design canvas wins over Bloompeak for look |
 | 0.4 | 2026-11-19 | Shripathi Raman Radhakrishnan | New Tab 2 Resources & Leave (FR-15, FR-17, FR-18 moved there; FR-30, FR-31 added); Capacity is Tab 3 and read-only; Planning Calendar is Tab 4; design canvas linked; FR-13 aligned with Edge Cases (missing Dev or BA keeps the other half's MD); FR-23 cards drawn in exact days at each person's net rate, rounded only at each row's finish; FR-22 dropped cards snap their start to the nearest half day and push later cards right; FR-32 multi-person Contributor or Backup Assignee: SM picks from a dropdown, default first listed, a calendar drag wins; one Save plan for Tabs 1-4; File Structure added (separate HTML, CSS, JS, JSON attachments; viewer files on the parent page) |
 | 0.3 | 2026-11-19 | Shripathi Raman Radhakrishnan | Team ceremony % added to capacity formula; Team confirmed custom field; Publish creates one page per sprint named \<Sprint> - \<Squad>; all open questions closed |
