@@ -42,16 +42,7 @@ def _(app):
     check(app.state("S.tab") == "config", "a disabled tab must not open")
 
 
-@test("US-01 AC-3 No project permission: the message names Browse Projects on the project")
-def _(app):
-    app.open("noperm", attachments=att("scp-config.json", saved_config()), wait_connected=False)
-    app.page.wait_for_selector("[data-test=conn-status] >> text=Missing permission")
-    t = app.text("[data-test=conn-status]")
-    check("Browse Projects" in t and "PCAP" in t, t)
-    check(tabs_disabled(app), "tabs should stay disabled")
-
-
-@test("US-01 AC-4 Link missing: says the link is not configured and whom to contact")
+@test("US-01 AC-3 Link missing: says the link is not configured and whom to contact")
 def _(app):
     app.open("nolink", wait_connected=False)
     app.page.wait_for_selector("[data-test=conn-status] >> text=not configured")
@@ -74,7 +65,7 @@ def _(app):
     check(tabs_enabled(app), "connected with the absolute path form")
 
 
-@test("US-01 Proxy switched off (HTTP 403, not JSON): says so and whom to contact")
+@test("US-01 AC-4 Proxy blocked (HTTP 403, not JSON): says so and whom to contact")
 def _(app):
     app.open("proxyblocked", wait_connected=False)
     app.page.wait_for_selector("[data-test=conn-status] >> text=refused to pass the call")
@@ -89,6 +80,14 @@ def _(app):
     check(tabs_disabled(app), "tabs should stay disabled")
 
 
+@test("US-01 Test connection needs no project and does not check one (FR-1)")
+def _(app):
+    app.open("noperm")                      # no rights on PCAP, but the link and the user are fine
+    check(tabs_enabled(app), "connection passes without a project check")
+    calls = app.page.evaluate("() => window.SCP_MOCK.calls")
+    check("/rest/api/2/myself" in calls and not any(c.startswith("/rest/api/2/project") for c in calls), calls)
+
+
 @test("US-01 Out of scope: scp-jira.js only ever sends GET (no write to Jira)")
 def _(app):
     import os
@@ -99,12 +98,21 @@ def _(app):
 
 # ---------------------------------------------------------------- US-02
 
-@test("US-02 AC-1 Selecting a project loads boards, Team values, issue types and sprints")
+def fetch(app, key):
+    app.page.fill("[data-act=project-key]", key)
+    app.page.click("[data-act=fetch]")
+    app.settle(400)
+
+
+@test("US-02 AC-1 Type a key, click Fetch from Jira: boards, Team values, issue types and sprints load")
 def _(app):
     app.open("ok")
-    app.page.select_option("[data-act=project]", "PCAP")
+    check(app.page.get_attribute("[data-act=project-key]", "placeholder") == "e.g. PCAP", "text field")
+    check(app.page.locator("select[data-act=project]").count() == 0, "no project dropdown any more")
+    check(app.page.is_disabled("[data-act=fetch]"), "Fetch disabled while the key is empty")
+    check(app.page.locator("[data-test=sprints]").count() == 0, "nothing fetched yet")
+    fetch(app, "PCAP")
     app.page.wait_for_selector("[data-test=sprints]")
-    app.settle(300)
     boards = app.page.eval_on_selector("[data-act=board]", "s => [...s.options].map(o => o.text)")
     check(boards == ["PCAP Scrum board", "PCAP Kanban"], boards)
     check(app.page.eval_on_selector("[data-act=board]", "s => s.selectedOptions[0].text") == "PCAP Scrum board", "scrum board pre-selected")
@@ -114,6 +122,67 @@ def _(app):
     for t in ["Story", "Bug", "Task", "Sub-task", "Epic"]:
         check(t in types, "missing issue type " + t)
     check("4 sprints" in app.text("[data-test=sprints]"), app.text("[data-test=sprints]"))
+    check("PCAP \u00b7 Private Capital" in app.text("[data-test=project-name]"), "project name shown")
+
+
+@test("US-02 The key is upper-cased as typed; Enter fetches too")
+def _(app):
+    app.open("ok")
+    app.page.type("[data-act=project-key]", "pcap")
+    check(app.page.input_value("[data-act=project-key]") == "PCAP", app.page.input_value("[data-act=project-key]"))
+    app.page.press("[data-act=project-key]", "Enter")
+    app.page.wait_for_selector("[data-test=sprints]")
+    check(app.state("S.config.jira.projectKey") == "PCAP", "fetched")
+
+
+@test("US-02 AC-4 Unknown key: 'not found, or you lack Browse Projects', nothing loads")
+def _(app):
+    app.open("ok")
+    fetch(app, "XYZ")
+    app.page.wait_for_selector("[data-test=project-error]")
+    t = app.text("[data-test=project-error]")
+    check("XYZ was not found, or you lack the Browse Projects permission on it" in t, t)
+    check(app.state("S.config.jira.projectKey") == "" and app.state("S.jira.boards.length") == 0, "nothing loaded")
+
+
+@test("US-02 AC-4 No Browse Projects on the key: the same message (Jira cannot tell them apart)")
+def _(app):
+    app.open("noperm")
+    fetch(app, "PCAP")
+    app.page.wait_for_selector("[data-test=project-error]")
+    check("PCAP was not found, or you lack the Browse Projects permission" in app.text("[data-test=project-error]"),
+          app.text("[data-test=project-error]"))
+    check(app.page.locator("[data-test=sprints]").count() == 0, "nothing loaded")
+
+
+@test("US-02 AC-5 Key edited after a fetch: stale, Save config blocked until the next fetch")
+def _(app):
+    app.open("ok", attachments=att("scp-config.json", saved_config()))
+    app.page.wait_for_selector("[data-test=sprints]")
+    app.page.fill("[data-act=project-key]", "TC316")
+    app.page.press("[data-act=project-key]", "Tab")
+    app.settle()
+    check("Key changed: click Fetch from Jira to load TC316" in app.text("[data-test=project-stale]"), app.text("[data-test=project-card]"))
+    check(app.page.is_disabled("[data-act=board]") and app.page.is_disabled("[data-act=team]"), "stale fields locked")
+    app.page.click("[data-act=save-config]")
+    app.page.wait_for_selector("[data-test=save-errors]")
+    check("click Fetch from Jira before saving" in app.text("[data-test=save-errors]"), app.text("[data-test=save-errors]"))
+    check(app.attachment("scp-config.json")["jira"]["projectKey"] == "PCAP", "nothing overwritten")
+    app.page.click("[data-act=fetch]")
+    app.page.wait_for_selector("[data-test=issuetypes] >> text=Incident")
+    app.settle(300)
+    check(app.page.locator("[data-test=project-stale]").count() == 0, "no longer stale")
+    check(app.state("S.config.jira.boardId") == 77 and app.state("S.config.jira.issueTypes") == [], "new project's values, reset")
+    check(app.state("S.config.jira.team") == "", "team reset")
+
+
+@test("US-02 AC-6 Page load with a saved key: connection test and fetch run without a click")
+def _(app):
+    app.open("ok", attachments=att("scp-config.json", saved_config()))
+    app.page.wait_for_selector("[data-test=sprints]")
+    check(app.page.input_value("[data-act=project-key]") == "PCAP", "saved key shown")
+    check(app.state("S.config.jira.boardId") == 41 and app.state("S.config.jira.issueTypes") == ["Story", "Bug"], "saved values kept")
+    check(app.state("S.config.jira.team") == "Squad Orion", "team kept")
 
 
 @test("US-02 AC-2 Each sprint shows name, state, start and end date")
@@ -137,18 +206,6 @@ def _(app):
     app.settle()
     check(app.state("S.config.jira.issueTypes") == ["Story"], app.state("S.config.jira.issueTypes"))
     # The Tab 1 half of this criterion (no Bug ticket listed) is tested with US-08.
-
-
-@test("US-02 Changing project resets board, team and issue types to the new project's")
-def _(app):
-    app.open("ok", attachments=att("scp-config.json", saved_config()))
-    app.page.wait_for_selector("[data-test=sprints]")
-    app.page.select_option("[data-act=project]", "TC316")
-    app.page.wait_for_selector("[data-test=issuetypes] >> text=Incident")
-    app.settle(300)
-    check(app.state("S.config.jira.boardId") == 77, app.state("S.config.jira.boardId"))
-    check(app.state("S.config.jira.issueTypes") == [], "issue types reset")
-    check(app.state("S.config.jira.team") == "", "team reset")
 
 
 # ---------------------------------------------------------------- US-03
@@ -309,7 +366,7 @@ def _(app):
     app.page.press("[data-focus=th-over]", "Tab")
     app.page.click("[data-act=weekday][data-day='6']")       # add Saturday
     app.settle()
-    app.page.select_option("[data-act=project]", "PCAP")
+    fetch(app, "PCAP")
     app.page.wait_for_selector("[data-test=sprints]")
     app.page.select_option("[data-act=team]", "Squad Orion")
     app.page.check("[data-act=issuetype][value=Story]")

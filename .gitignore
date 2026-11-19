@@ -3,3 +3,6 @@ screens/
 
 # Ignore PDF files in the root folder
 /*.pdf
+
+# Local preview with sample data, never committed
+dummy/

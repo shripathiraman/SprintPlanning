@@ -23,7 +23,9 @@
     fieldReject: {},         // role -> rejection message (US-03 AC-2)
     holidayError: {},        // location id -> message (US-06 AC-2)
     saveErrors: null,        // list of messages after a blocked save
-    saving: false
+    saving: false,
+    keyInput: null,          // project key as typed; null = the saved key (US-02)
+    projectError: null       // why the last Fetch from Jira failed (US-02 AC-4)
   };
 
   function S() { return SCP.state; }
@@ -90,56 +92,68 @@
     var st = S();
     st.conn = { status: 'testing', user: '', error: null };
     SCP.app.render();
-    return SCP.jira.testConnection(cfg().jira.projectKey).then(function (r) {
+    return SCP.jira.testConnection().then(function (r) {
       st.conn = { status: 'ok', user: r.user, error: null };
       SCP.app.render();
       return tab.loadJira();
     }, function (err) {
-      st.conn = { status: 'error', user: err.user || '', error: err };
+      st.conn = { status: 'error', user: '', error: err };
       SCP.app.render();
     });
   };
 
-  /** Projects and fields, then the selected project's details. */
+  /** Fields for mapping, then, with a saved key, Fetch from Jira on its own (US-02 AC-6). */
   tab.loadJira = function () {
     J().loading.base = true;
-    return Promise.all([SCP.jira.projects(), SCP.jira.fields()]).then(function (r) {
-      J().projects = (r[0] || []).slice().sort(function (a, b) { return a.key.localeCompare(b.key); });
-      J().fields = (r[1] || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    return SCP.jira.fields().then(function (fields) {
+      J().fields = (fields || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
       J().loading.base = false;
       autoMapFields();
       SCP.app.render();
-      if (cfg().jira.projectKey) { return tab.loadProject(cfg().jira.projectKey, true); }
+      if (cfg().jira.projectKey) { return tab.fetchProject(cfg().jira.projectKey); }
     }).catch(function (err) {
       J().loading.base = false;
       SCP.app.render();
-      SCP.app.notice('error', 'Could not load projects and fields from Jira: ' + ui.esc(err.message));
+      SCP.app.notice('error', 'Could not load the Jira fields: ' + ui.esc(err.message));
     });
   };
 
+  /** Typed key differs from the key last fetched: board, team, types and sprints are stale (US-02 AC-5). */
+  tab.isStale = function () {
+    var typed = view.keyInput === null ? cfg().jira.projectKey : view.keyInput;
+    return !!typed && typed !== cfg().jira.projectKey;
+  };
+
   /**
-   * Boards, issue types, Team values and sprints of a project (US-02 AC-1).
-   * keep = true keeps the saved board, issue types and team.
+   * Fetch from Jira (US-02, FR-2): check the project, then load its boards,
+   * issue types, Team values and sprints. Fetching the saved key again keeps
+   * the saved board, issue types and team; a new key resets them.
    */
-  tab.loadProject = function (key, keep) {
+  tab.fetchProject = function (rawKey) {
     var jc = cfg().jira;
-    var p = J().projects.filter(function (x) { return x.key === key; })[0];
-    jc.projectKey = key;
-    jc.projectName = p ? p.name : jc.projectName;
-    if (!keep) {
-      jc.boardId = null;
-      jc.boardName = '';
-      jc.issueTypes = [];
-      jc.team = '';
-      J().sprints = [];
-    }
+    var key = String(rawKey || '').trim().toUpperCase();
+    if (!key || !SCP.app.connected()) { return Promise.resolve(false); }
+    var keep = key === jc.projectKey;
+    view.projectError = null;
     J().loading.project = true;
     SCP.app.render();
-    return Promise.all([SCP.jira.boards(key), SCP.jira.project(key), tab.loadTeams()]).then(function (r) {
-      J().boards = r[0] || [];
-      J().issueTypes = ((r[1] && r[1].issueTypes) || []).map(function (t) {
+    return SCP.jira.checkProject(key).then(function (project) {
+      jc.projectKey = key;
+      jc.projectName = project.name || '';
+      view.keyInput = key;
+      if (!keep) {
+        jc.boardId = null;
+        jc.boardName = '';
+        jc.issueTypes = [];
+        jc.team = '';
+        J().sprints = [];
+      }
+      J().issueTypes = (project.issueTypes || []).map(function (t) {
         return { name: t.name, subtask: !!t.subtask };
       });
+      return Promise.all([SCP.jira.boards(key), tab.loadTeams()]);
+    }).then(function (r) {
+      J().boards = r[0] || [];
       var valid = J().boards.some(function (b) { return b.id === jc.boardId; });
       if (!valid) {
         var board = J().boards.filter(function (b) { return b.type === 'scrum'; })[0] || J().boards[0];
@@ -150,9 +164,13 @@
       SCP.app.render();
       return jc.boardId ? tab.loadBoard(jc.boardId) : null;
     }).catch(function (err) {
+      // Nothing of the new key loads; the last fetched project stays as it was (US-02 AC-4).
       J().loading.project = false;
+      view.projectError = err.kind === 'projectNotReadable'
+        ? err.message
+        : 'Could not fetch ' + key + ' from Jira: ' + err.message;
       SCP.app.render();
-      SCP.app.notice('error', 'Could not load project ' + ui.esc(key) + ' from Jira: ' + ui.esc(err.message));
+      return false;
     });
   };
 
@@ -197,6 +215,9 @@
   tab.validate = function () {
     var c = cfg();
     var errors = [];
+    if (tab.isStale()) {
+      errors.push('Project key changed to ' + view.keyInput + ': click Fetch from Jira before saving');
+    }
     var b = calc.validateBands(c.bands);
     if (!b.ok) { errors.push('Story Points bands: ' + b.message); }
     var s = calc.validateSplit(c.split);
@@ -294,13 +315,6 @@
           : 'Allow Confluence to use your Jira account (any Jira macro on a Confluence page offers "Login & approve"), then click Test connection again.')
       };
     }
-    if (e.kind === 'noPermission') {
-      return {
-        cls: 'error', title: 'Missing permission: Browse Projects on ' + ui.esc(e.projectKey || key),
-        detail: (e.user ? 'Connected as ' + ui.esc(e.user) + ', but ' : '') + 'you need the <b>Browse Projects</b> permission on ' +
-          ui.esc(e.projectKey || key) + '. Ask the Jira project administrator to grant it.'
-      };
-    }
     if (e.kind === 'noLink') {
       return {
         cls: 'error', title: 'The Confluence–Jira application link is not configured',
@@ -364,8 +378,9 @@
   function renderProject() {
     var jc = cfg().jira;
     var on = SCP.app.connected();
-    var dis = on ? '' : ' disabled';
-    var projects = J().projects.length ? J().projects : (jc.projectKey ? [{ key: jc.projectKey, name: jc.projectName }] : []);
+    var stale = tab.isStale();
+    var typed = view.keyInput === null ? jc.projectKey : view.keyInput;
+    var dis = on && !stale ? '' : ' disabled';
     var boards = J().boards.length ? J().boards : (jc.boardId ? [{ id: jc.boardId, name: jc.boardName }] : []);
     var teams = J().teams.slice();
     if (jc.team && teams.indexOf(jc.team) === -1) { teams.unshift(jc.team); }
@@ -375,20 +390,32 @@
       return '<label class="scp-chip' + (checked ? ' is-on' : '') + '"><input type="checkbox" data-act="issuetype" value="' +
         ui.esc(t.name) + '"' + (checked ? ' checked' : '') + dis + '> ' + ui.esc(t.name) + '</label>';
     }).join('');
-    return '<section class="scp-card">' +
+    var keyHint = '';
+    if (view.projectError) {
+      keyHint = '<div class="scp-hint scp-bad" data-test="project-error">' + ui.esc(view.projectError) + '</div>';
+    } else if (stale) {
+      keyHint = '<div class="scp-hint scp-bad" data-test="project-stale">Key changed: click Fetch from Jira to load ' + ui.esc(typed) +
+        '. Board, Team, issue types and sprints below are still ' + ui.esc(jc.projectKey) + '\u2019s.</div>';
+    } else if (jc.projectKey && jc.projectName) {
+      keyHint = '<div class="scp-hint scp-muted" data-test="project-name">' + ui.esc(jc.projectKey + ' \u00b7 ' + jc.projectName) + '</div>';
+    }
+    return '<section class="scp-card' + (stale ? ' is-stale' : '') + '" data-test="project-card">' +
       '<div class="scp-card__head"><h2>Project &amp; team</h2>' +
-      (J().loading.project ? '<span class="scp-muted">Loading from Jira…</span>' : '') + '</div>' +
-      '<div class="scp-grid3">' +
-      '<label class="scp-field"><span>Project</span><select data-act="project" data-focus="project"' + dis + '>' +
-      options(projects, jc.projectKey, function (p) { return p.key; }, function (p) { return p.key + ' · ' + p.name; }, 'Choose a project') + '</select></label>' +
+      (J().loading.project ? '<span class="scp-muted">Loading from Jira\u2026</span>' : '') + '</div>' +
+      '<div class="scp-field"><span>Project key</span><div class="scp-inline">' +
+      '<input class="scp-input scp-input--key" data-act="project-key" data-focus="project-key" value="' + ui.esc(typed) + '" placeholder="e.g. PCAP"' +
+      ' autocomplete="off" spellcheck="false" aria-label="Jira project key"' + (on ? '' : ' disabled') + '>' +
+      '<button type="button" class="scp-btn" data-act="fetch"' + (on && typed && !J().loading.project ? '' : ' disabled') + '>Fetch from Jira</button>' +
+      '</div>' + keyHint + '</div>' +
+      '<div class="scp-grid2 scp-grid2--tight">' +
       '<label class="scp-field"><span>Board</span><select data-act="board" data-focus="board"' + dis + '>' +
-      options(boards, jc.boardId, function (b) { return b.id; }, function (b) { return b.name; }, boards.length ? '' : 'No board') + '</select></label>' +
+      options(boards, jc.boardId, function (b) { return b.id; }, function (b) { return b.name; }, boards.length ? '' : 'Fetch a project first') + '</select></label>' +
       '<label class="scp-field"><span>Team (squad)</span><select data-act="team" data-focus="team"' + dis + '>' +
       options(teams, jc.team, function (t) { return t; }, function (t) { return t; },
         cfg().fields.team ? 'Choose a team' : 'Map the Team field first') + '</select></label>' +
       '</div>' +
       '<div class="scp-field"><span>Issue types to plan</span><div class="scp-chips" data-test="issuetypes">' +
-      (chips || '<span class="scp-muted">Select a project to load its issue types</span>') + '</div></div>' +
+      (chips || '<span class="scp-muted">Fetch a project to load its issue types</span>') + '</div></div>' +
       renderSprints() +
       '</section>';
   }
@@ -610,6 +637,8 @@
     var c = cfg();
     if (act === 'test') {
       tab.testConnection();
+    } else if (act === 'fetch') {
+      tab.fetchProject(view.keyInput === null ? cfg().jira.projectKey : view.keyInput);
     } else if (act === 'weekday') {
       var d = Number(el.getAttribute('data-day'));
       var i = c.workingWeek.indexOf(d);
@@ -667,9 +696,7 @@
     var el = e.target;
     var act = el.getAttribute('data-act');
     var c = cfg();
-    if (act === 'project') {
-      if (el.value) { tab.loadProject(el.value, false); }
-    } else if (act === 'board') {
+    if (act === 'board') {
       var b = J().boards.filter(function (x) { return String(x.id) === el.value; })[0];
       c.jira.boardId = b ? b.id : null;
       c.jira.boardName = b ? b.name : '';
@@ -685,6 +712,10 @@
       redraw();
     } else if (act === 'field') {
       onFieldPicked(el);
+    } else if (act === 'project-key') {
+      onInput(e);
+      edited();
+      redraw();
     } else if (act === 'split' || act === 'ceremony' || act === 'threshold' || act === 'band' || act === 'loc-name') {
       onInput(e);
       edited();
@@ -718,7 +749,16 @@
     var el = e.target;
     var act = el.getAttribute('data-act');
     var c = cfg();
-    if (act === 'split') {
+    if (act === 'project-key') {
+      // Upper-case as typed; the stale state shows once the field is left (change).
+      var pos = el.selectionStart;
+      el.value = el.value.toUpperCase();
+      if (pos !== null) { el.setSelectionRange(pos, pos); }
+      view.keyInput = el.value.trim();
+      view.projectError = null;
+      var fetchBtn = SCP.state.root.querySelector('[data-act="fetch"]');
+      if (fetchBtn) { fetchBtn.disabled = !view.keyInput || !SCP.app.connected(); }
+    } else if (act === 'split') {
       c.split[el.getAttribute('data-key')] = ui.num(el.value);
       var line = SCP.state.root.querySelector('#scp-split-line');
       if (line) { line.innerHTML = splitLine(); }
@@ -734,6 +774,13 @@
   }
 
   function bind(body) {
+    body.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.target.getAttribute('data-act') === 'project-key') {
+        e.preventDefault();
+        onInput(e);
+        tab.fetchProject(view.keyInput);
+      }
+    });
     body.addEventListener('click', onClick);
     body.addEventListener('change', onChange);
     body.addEventListener('input', onInput);

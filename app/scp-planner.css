@@ -271,3 +271,8 @@
 @media (max-width: 1000px) {
   .scp-facts, .scp-panels { grid-template-columns: 1fr 1fr; }
 }
+
+/* Project key and Fetch from Jira (US-02) */
+.scp-input--key { width: 140px; text-transform: uppercase; font-weight: 600; letter-spacing: .02em; }
+.scp-grid2--tight { gap: 12px; margin: 12px 0; }
+.scp-card.is-stale select, .scp-card.is-stale .scp-chip, .scp-card.is-stale .scp-sprints { opacity: .5; }

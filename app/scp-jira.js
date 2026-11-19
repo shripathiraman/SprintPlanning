@@ -181,11 +181,6 @@
     return jira.get('/rest/api/2/myself');
   };
 
-  /** Projects the user can browse, for the Project picker. */
-  jira.projects = function () {
-    return jira.get('/rest/api/2/project');
-  };
-
   /** One project, with its issue types (FR-2, FR-3). */
   jira.project = function (key) {
     return jira.get('/rest/api/2/project/' + encodeURIComponent(key));
@@ -291,24 +286,28 @@
   };
 
   /**
-   * Test connection (US-01): who am I, and can I browse the chosen project?
-   * Resolves { user } or rejects with a JiraError; noPermission carries the user.
+   * Test connection (US-01, FR-1): the link and the user only, no project.
+   * Resolves { user } or rejects with a JiraError.
    */
-  jira.testConnection = function (projectKey) {
+  jira.testConnection = function () {
     return jira.myself().then(function (me) {
-      var user = me && (me.displayName || me.name);
-      if (!projectKey) { return { user: user }; }
-      return jira.project(projectKey).then(function () {
-        return { user: user };
-      }, function (err) {
-        if (err.kind === 'noPermission' || err.kind === 'notFound') {
-          var e = new JiraError('noPermission', 'No Browse Projects permission on ' + projectKey, { status: err.status });
-          e.user = user;
-          e.projectKey = projectKey;
-          throw e;
-        }
-        throw err;
-      });
+      return { user: me && (me.displayName || me.name) };
+    });
+  };
+
+  /**
+   * Project check for Fetch from Jira (US-02, FR-2). Jira answers 404 both for
+   * a key that does not exist and for one the user cannot browse, so both
+   * become kind 'projectNotReadable'.
+   */
+  jira.checkProject = function (key) {
+    return jira.project(key).catch(function (err) {
+      if (err.kind === 'notFound' || err.kind === 'noPermission') {
+        var e = new JiraError('projectNotReadable', key + ' was not found, or you lack the Browse Projects permission on it', { status: err.status });
+        e.projectKey = key;
+        throw e;
+      }
+      throw err;
     });
   };
 }(window.SCP = window.SCP || {}));

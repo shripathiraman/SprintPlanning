@@ -66,7 +66,7 @@
     plan: null,            // scp-plan.json content, null if no plan yet
     planMeta: null,
     conn: { status: 'idle', user: '', error: null },
-    jira: { projects: [], boards: [], sprints: [], issueTypes: [], fields: [], teams: [], loading: {} },
+    jira: { boards: [], sprints: [], issueTypes: [], fields: [], teams: [], loading: {} },
     tab: 'config',
     planDirty: false,      // plan changed since last Save plan
     saving: false,
