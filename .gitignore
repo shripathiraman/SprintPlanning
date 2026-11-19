@@ -1,0 +1,5 @@
+# Ignore all files in the screens folder
+screens/
+
+# Ignore PDF files in the root folder
+/*.pdf

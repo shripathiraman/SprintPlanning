@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!--
+  tests/harness.html — TEST ONLY. Stands in for the Confluence planning page:
+  the same meta tags Confluence prints, the fake Jira/Confluence of
+  mock-env.js, then the real scp-macro.html body, unchanged.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SCP test harness</title>
+  <meta name="ajs-context-path" content="">
+  <meta name="ajs-page-id" content="900001">
+  <meta name="ajs-current-user-fullname" content="Shripathi Raman Radhakrishnan">
+  <script src="mock-env.js"></script>
+  <script>
+    window.SCP_BASE_URL = '../';
+    window.SCP = { settings: { jiraApplinkId: 'mock-link', jiraBaseUrl: 'https://jira.group.bank' } };
+  </script>
+  <style>body { margin: 0; padding: 16px; background: #fff; }</style>
+</head>
+<body>
+  <div id="macro"></div>
+  <script>
+    /* Insert the real macro body and run its script, as Confluence's HTML macro does. */
+    fetch('../scp-macro.html').then(function (r) { return r.text(); }).then(function (html) {
+      var host = document.getElementById('macro');
+      host.innerHTML = html;
+      host.querySelectorAll('script').forEach(function (old) {
+        var s = document.createElement('script');
+        s.textContent = old.textContent;
+        old.replaceWith(s);
+      });
+    });
+  </script>
+</body>
+</html>

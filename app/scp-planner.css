@@ -1,0 +1,273 @@
+/*
+ * scp-planner.css — Sprint Capacity Planner · styles for Config and Tabs 1-4
+ *
+ * Every rule is scoped under .scp so nothing leaks into the Confluence page.
+ * Colours follow the design canvas: blue = Dev, orange = BA, green / amber /
+ * red = load thresholds (FR-7), lilac = office holiday.
+ */
+
+.scp {
+  --scp-bg: #f5f6f8;
+  --scp-card: #ffffff;
+  --scp-line: #e4e7ec;
+  --scp-text: #101828;
+  --scp-muted: #667085;
+  --scp-primary: #1d4ed8;
+  --scp-primary-dark: #1e40af;
+  --scp-dev: #1d4ed8;
+  --scp-dev-bg: #dbe6fd;
+  --scp-ba: #b45309;
+  --scp-ba-bg: #fde4cc;
+  --scp-ok: #166534;
+  --scp-ok-bg: #e3f4e8;
+  --scp-warn: #854d0e;
+  --scp-warn-bg: #fef3c7;
+  --scp-bad: #b42318;
+  --scp-bad-bg: #fde4e1;
+  --scp-hol: #5b4b9a;
+  --scp-hol-bg: #e9e5f8;
+  font-family: Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--scp-text);
+  background: var(--scp-bg);
+  border-radius: 8px;
+}
+
+.scp *, .scp *::before, .scp *::after { box-sizing: border-box; }
+.scp h1, .scp h2, .scp p { margin: 0; }
+.scp button { font: inherit; }
+.scp .num { text-align: right; font-variant-numeric: tabular-nums; }
+.scp .scp-loading { padding: 32px; color: var(--scp-muted); }
+
+/* ---- Frame -------------------------------------------------------------- */
+
+.scp-topbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 32px;
+  border-bottom: 1px solid var(--scp-line);
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+}
+.scp-restricted { display: inline-flex; align-items: center; gap: 6px; color: var(--scp-muted); font-size: 13px; }
+.scp-wrap { padding: 24px 32px 32px; }
+
+.scp-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 18px; }
+.scp-head__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.scp-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--scp-muted); }
+.scp-title { font-size: 30px; font-weight: 700; letter-spacing: -.01em; margin: 4px 0 2px; }
+.scp-sub { color: var(--scp-muted); font-size: 13px; }
+
+.scp-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--scp-line); margin-bottom: 20px; }
+.scp-tab {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  color: var(--scp-muted);
+  font-weight: 500;
+  cursor: pointer;
+}
+.scp-tab:hover:not(:disabled) { color: var(--scp-text); }
+.scp-tab.is-active { color: var(--scp-text); font-weight: 600; border-bottom-color: var(--scp-text); }
+.scp-tab:disabled { opacity: .45; cursor: not-allowed; }
+
+.scp-notice:empty { display: none; }
+.scp-notice { margin: -8px 0 16px; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+.scp-notice--ok { background: var(--scp-ok-bg); color: var(--scp-ok); }
+.scp-notice--warn { background: var(--scp-warn-bg); color: var(--scp-warn); }
+.scp-notice--error { background: var(--scp-bad-bg); color: var(--scp-bad); }
+.scp-notice--info { background: #e8effd; color: var(--scp-primary-dark); }
+
+/* ---- Cards and layout --------------------------------------------------- */
+
+.scp-card {
+  background: var(--scp-card);
+  border: 1px solid var(--scp-line);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.scp-card__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.scp-card__head h2 { font-size: 17px; font-weight: 600; }
+.scp-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.scp-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; }
+.scp-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+@media (max-width: 1000px) {
+  .scp-cols, .scp-grid2 { grid-template-columns: 1fr; }
+}
+.scp-blocked { color: var(--scp-text); }
+.scp-blocked p { margin-bottom: 12px; }
+.scp-errors { border-color: #f4b8b0; background: #fff6f5; color: var(--scp-bad); }
+.scp-errors ul { margin: 6px 0 0 18px; padding: 0; }
+
+/* ---- Controls ----------------------------------------------------------- */
+
+.scp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--scp-text);
+  font-weight: 500;
+  cursor: pointer;
+}
+.scp-btn:hover:not(:disabled) { background: #f9fafb; }
+.scp-btn:disabled { opacity: .55; cursor: not-allowed; }
+.scp-btn--primary { background: var(--scp-primary); border-color: var(--scp-primary); color: #fff; }
+.scp-btn--primary:hover:not(:disabled) { background: var(--scp-primary-dark); }
+.scp-btn--icon { padding: 4px 10px; }
+.scp-link { background: none; border: 0; padding: 0 0 0 8px; color: var(--scp-primary); cursor: pointer; text-decoration: underline; font-size: 13px; }
+.scp-link--danger { color: var(--scp-bad); }
+
+.scp-field { display: flex; flex-direction: column; gap: 4px; }
+.scp-field > span, .scp-label { font-size: 13px; color: #344054; font-weight: 500; margin-bottom: 4px; }
+.scp-field--inline { flex-direction: row; align-items: center; gap: 8px; }
+.scp select, .scp-input {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--scp-text);
+  min-width: 0;
+}
+.scp select { width: 100%; }
+.scp select:disabled { background: #f2f4f7; }
+.scp-input--num { width: 80px; }
+.scp-input--tiny { width: 64px; padding: 3px 6px; }
+.scp-input.is-invalid { border-color: var(--scp-bad); }
+.scp :focus-visible { outline: 2px solid var(--scp-primary); outline-offset: 2px; }
+.scp-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scp-hint { font-size: 12.5px; margin-top: 6px; }
+.scp-muted { color: var(--scp-muted); font-size: 13px; }
+.scp-good { color: var(--scp-ok); font-weight: 500; }
+.scp-bad { color: var(--scp-bad); font-weight: 500; }
+
+.scp-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.scp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  cursor: pointer;
+  background: #fff;
+}
+.scp-chip.is-on { border-color: var(--scp-primary); background: #eef3ff; }
+
+.scp-week { display: flex; gap: 4px; }
+.scp-day {
+  min-width: 40px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: #eef0f3;
+  color: var(--scp-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+.scp-day.is-on { background: #101828; color: #fff; font-weight: 600; }
+
+.scp-thresholds { display: flex; gap: 8px; flex-wrap: wrap; }
+.scp-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; }
+.scp-badge--under { background: var(--scp-warn-bg); color: var(--scp-warn); }
+.scp-badge--ok { background: var(--scp-ok-bg); color: var(--scp-ok); }
+.scp-badge--over { background: var(--scp-bad-bg); color: var(--scp-bad); }
+
+.scp-tag { display: inline-block; padding: 2px 8px; border-radius: 6px; background: #f2f4f7; color: #475467; font-size: 12px; }
+.scp-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: #f2f4f7; }
+.scp-pill--active { background: var(--scp-ok-bg); color: var(--scp-ok); }
+.scp-pill--future { background: #e8effd; color: var(--scp-primary-dark); }
+
+/* ---- Status box (US-01) ------------------------------------------------- */
+
+.scp-status { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 8px; border: 1px solid; }
+.scp-status__icon { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; margin-top: 3px; flex: none; }
+.scp-status__title { font-weight: 600; }
+.scp-status__detail { font-size: 13px; margin-top: 2px; }
+.scp-status__detail a { color: inherit; }
+.scp-status--ok { background: var(--scp-ok-bg); border-color: #b7dfc2; color: var(--scp-ok); }
+.scp-status--error { background: var(--scp-bad-bg); border-color: #f4b8b0; color: var(--scp-bad); }
+.scp-status--neutral { background: #f9fafb; border-color: var(--scp-line); color: #475467; }
+
+/* ---- Tables ------------------------------------------------------------- */
+
+.scp-table { width: 100%; border-collapse: collapse; }
+.scp-table th { text-align: left; font-size: 12.5px; font-weight: 500; color: var(--scp-muted); padding: 8px 10px; border-bottom: 1px solid var(--scp-line); }
+.scp-table tbody th { color: var(--scp-text); font-weight: 600; font-size: 14px; }
+.scp-table td { padding: 9px 10px; border-bottom: 1px solid #eef0f3; vertical-align: middle; }
+.scp-table th.num { text-align: right; }
+.scp-table tr.is-invalid td { background: #fff6f5; }
+.scp-table--compact td, .scp-table--compact th { padding: 6px 8px; font-size: 13px; }
+.scp-dev { color: var(--scp-dev); }
+.scp-ba { color: var(--scp-ba); }
+
+.scp-sprints { margin-top: 12px; font-size: 13px; }
+.scp-sprints summary { cursor: pointer; color: #344054; }
+
+/* ---- Locations (US-06) -------------------------------------------------- */
+
+.scp-loc { border: 1px solid var(--scp-line); border-radius: 10px; margin-bottom: 10px; }
+.scp-loc__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.scp-loc.is-open .scp-loc__row { border-bottom: 1px solid var(--scp-line); }
+.scp-loc__editor { padding: 12px 14px; }
+.scp-chip-hol { background: var(--scp-hol-bg); color: var(--scp-hol); border-radius: 6px; padding: 3px 8px; font-size: 12.5px; font-weight: 500; }
+.scp-addhol { margin-top: 10px; }
+
+/* Field mapping (US-03): keep the check on one line, picker readable */
+.scp-table td .scp-good, .scp-table td .scp-bad { white-space: nowrap; }
+[data-test="field-mapping"] tbody th { white-space: nowrap; font-size: 13.5px; }
+[data-test="field-mapping"] select { font-size: 13px; padding: 6px 8px; }
+
+/* ---- Plan header and banners (Tabs 1-4) --------------------------------- */
+
+.scp-unsaved { display: inline-flex; align-items: center; gap: 6px; color: var(--scp-warn); font-size: 13px; font-weight: 500; }
+.scp-unsaved::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #a16207; }
+.scp-sprint-select { width: auto !important; min-width: 190px; }
+.scp-banner { padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13.5px; }
+.scp-banner--warn { background: var(--scp-warn-bg); color: var(--scp-warn); border: 1px solid #f5d98b; }
+.scp-empty h2 { font-size: 17px; margin-bottom: 6px; }
+
+/* ---- Tab 1 Sprint Tickets ----------------------------------------------- */
+
+.scp-facts { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.scp-fact { background: #fff; border: 1px solid var(--scp-line); border-radius: 10px; padding: 12px 16px; }
+.scp-fact__label { font-size: 12.5px; color: var(--scp-muted); }
+.scp-fact__value { font-weight: 600; margin-top: 2px; }
+.scp-fact__big { font-size: 20px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.scp-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.scp-panel { border-radius: 10px; padding: 14px 16px; border: 1px solid; font-size: 13.5px; }
+.scp-panel b { display: block; margin-bottom: 6px; font-size: 14px; }
+.scp-panel--info { background: #eef3ff; border-color: #c7d6fb; color: var(--scp-primary-dark); }
+.scp-panel--warn { background: #fff7e0; border-color: #f5d98b; color: var(--scp-warn); }
+.scp-chips--small { gap: 6px; }
+.scp-change { background: #fff; border: 1px solid #c7d6fb; border-radius: 6px; padding: 3px 8px; color: var(--scp-text); font-size: 13px; }
+.scp-note { padding: 14px 16px; }
+.scp-note b { display: block; margin-bottom: 2px; }
+.scp-card--flush { padding: 0; overflow: hidden; }
+.scp-tickets th, .scp-tickets td { padding: 11px 14px; }
+.scp-tickets a { color: var(--scp-primary); font-weight: 500; }
+.scp-tickets tr.is-flagged td { background: #fffbeb; }
+.scp-tickets tfoot th, .scp-tickets tfoot td { border-bottom: 0; background: #f9fafb; }
+.scp-person { width: auto !important; border-color: var(--scp-primary); }
+.scp-moved { font-size: 12px; color: var(--scp-primary-dark); }
+@media (max-width: 1000px) {
+  .scp-facts, .scp-panels { grid-template-columns: 1fr 1fr; }
+}

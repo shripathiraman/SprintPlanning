@@ -1,0 +1,74 @@
+<!--
+  scp-macro.html — Sprint Capacity Planner · HTML macro body for the planning page
+
+  Paste this into the HTML macro on the restricted planning page ("Sprint planning — <Squad>").
+  The CSS and JS are attachments of this same page; the loader below reads the
+  page ID that Confluence prints in the page, so nothing here needs editing
+  except the application link ID.
+-->
+<div id="scp-root"></div>
+<script>
+  (function () {
+    'use strict';
+
+    /* ---- The one setting to fill in ------------------------------------
+       Application link ID of jira.group.bank in this Confluence: the same link
+       the Release Impact readiness checklist uses (Confluence admin >
+       Application Links, or ask the Confluence admin). */
+    window.SCP = window.SCP || {};
+    window.SCP.settings = window.SCP.settings || {
+      jiraApplinkId: '',
+      jiraBaseUrl: 'https://jira.group.bank'
+    };
+
+    /* Attachments of this page, in load order (PRD File Structure). */
+    var FILES = [
+      'scp-planner.css',
+      'scp-calc.js',
+      'scp-jira.js',
+      'scp-store.js',
+      'scp-tab-config.js',
+      'scp-tab-tickets.js',
+      'scp-tab-resources.js',
+      'scp-tab-capacity.js',
+      'scp-tab-calendar.js',
+      'scp-publish.js',
+      'scp-app.js'
+    ];
+
+    function meta(name) {
+      var m = document.querySelector('meta[name="' + name + '"]');
+      return m ? m.getAttribute('content') || '' : '';
+    }
+
+    var base = window.SCP_BASE_URL ||
+      meta('ajs-context-path') + '/download/attachments/' + meta('ajs-page-id') + '/';
+
+    /* Load one file after the other so scripts run in the listed order. */
+    function load(i) {
+      if (i >= FILES.length) {
+        window.SCP.app.start(document.getElementById('scp-root'));
+        return;
+      }
+      var name = FILES[i];
+      var url = base + name + (base.indexOf('/download/attachments/') !== -1 ? '?api=v2' : '');
+      var el;
+      if (/\.css$/.test(name)) {
+        el = document.createElement('link');
+        el.rel = 'stylesheet';
+        el.href = url;
+      } else {
+        el = document.createElement('script');
+        el.src = url;
+      }
+      el.onload = function () { load(i + 1); };
+      el.onerror = function () {
+        document.getElementById('scp-root').innerHTML =
+          '<p style="color:#b42318">Sprint Capacity Planner: could not load the attachment ' + name +
+          ' from this page. Check that every scp-* file is attached here.</p>';
+      };
+      document.head.appendChild(el);
+    }
+    load(0);
+  }());
+</script>
