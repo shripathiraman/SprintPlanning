@@ -1,14 +1,17 @@
 /*
  * scp-jira.js — Sprint Capacity Planner · every Jira call (PRD Integration Points)
  *
- * Jira (jira.group.bank) is read through Confluence's application-link proxy,
- * the same route as the Release Impact readiness checklist. The call runs with
- * the viewer's own Jira rights; no API token is stored (FR-1). Read-only:
- * nothing in this file writes to Jira.
+ * Jira (jira.group.bank) is read through Confluence's own link to Jira, the
+ * same route as the Release Impact admin tool: Confluence lists its linked
+ * Jira servers, and each call goes through the link proxy signed in as the
+ * person using the page. No API token and no link ID are stored (FR-1).
+ *   GET <ctx>/rest/jiraanywhere/1.0/servers                  linked Jira servers
+ *   GET <ctx>/plugins/servlet/applinks/proxy?appId=<id>&path=<Jira REST path>
+ * Read-only: nothing in this file writes to Jira.
  *
- * Settings come from the macro body (scp-macro.html):
- *   SCP.settings.jiraApplinkId  application link ID of jira.group.bank
- *   SCP.settings.jiraBaseUrl    used only to build "browse" links
+ * Optional setting in the macro body (scp-macro.html):
+ *   SCP.settings.jiraServer  "" = the Jira this Confluence links to by default,
+ *                            or the name, address or link id of another linked Jira
  */
 (function (SCP) {
   'use strict';
@@ -24,15 +27,25 @@
     return m ? m.getAttribute('content') || '' : '';
   }
 
+  /** The linked Jira server in use: { id, name, url, authUrl }, once resolved. */
+  jira.server = null;
+
+  /* The proxy accepts either a relative path or Jira's full URL, depending on
+     the Confluence version; remember the form that worked (as Release Impact does). */
+  var absolutePath = false;
+
   /** Link to a ticket in Jira (US-08 AC-3). */
   jira.browseUrl = function (key) {
-    return (settings().jiraBaseUrl || 'https://jira.group.bank').replace(/\/$/, '') + '/browse/' + encodeURIComponent(key);
+    var base = (jira.server && jira.server.url) || 'https://jira.group.bank';
+    return base.replace(/\/+$/, '') + '/browse/' + encodeURIComponent(key);
   };
 
   /**
    * Error raised by every call. kind is one of:
-   *   noLink        application link not configured
-   *   notAuthorised user has not authorised the link yet (authUrl may be set)
+   *   notSignedIn   not signed in to Confluence
+   *   noLink        Confluence is not linked to Jira (or not to the configured one)
+   *   proxyBlocked  Confluence refused to pass the call to Jira
+   *   notAuthorised user has not allowed Confluence to use their Jira account (authUrl may be set)
    *   noPermission  403, or project hidden by missing Browse Projects
    *   notFound      404 on a Jira resource
    *   unreachable   network error or Jira/proxy down
@@ -48,61 +61,97 @@
   JiraError.prototype = Object.create(Error.prototype);
   jira.JiraError = JiraError;
 
-  /** Find the "authorise" URL the proxy sends back when credentials are required. */
-  function readAuthUrl(res, bodyText) {
-    var header = res.headers.get('WWW-Authenticate') || '';
-    var m = /authorisationURI="([^"]+)"/i.exec(header) || /authorizationURI="([^"]+)"/i.exec(header);
-    if (m) { return m[1]; }
-    try {
-      var j = JSON.parse(bodyText);
-      return j.authorisationUri || j.authorizationUri || null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /** GET a Jira REST path (e.g. "/rest/api/2/myself") through the application link. */
-  jira.get = function (path) {
-    var appId = settings().jiraApplinkId;
-    if (!appId) {
-      return Promise.reject(new JiraError('noLink', 'No application link ID set in the macro'));
-    }
-    var url = contextPath() + '/plugins/servlet/applinks/proxy?appId=' + encodeURIComponent(appId) +
-      '&path=' + encodeURIComponent(path);
+  /** One HTTP GET; the body is parsed when it is JSON. */
+  function raw(url) {
     return fetch(url, {
       credentials: 'same-origin',
       cache: 'no-store',
       headers: { 'Accept': 'application/json' }
     }).then(function (res) {
       return res.text().then(function (text) {
-        if (res.ok) {
-          try {
-            return text ? JSON.parse(text) : null;
-          } catch (e) {
-            throw new JiraError('http', 'Jira sent a response that is not JSON', { status: res.status });
-          }
-        }
-        if (res.status === 401) {
-          throw new JiraError('notAuthorised', 'Not authorised on the application link', {
-            status: 401, authUrl: readAuthUrl(res, text)
+        var body = text;
+        var isJson = false;
+        try { body = JSON.parse(text); isJson = true; } catch (e) { /* not JSON */ }
+        return { res: res, body: body, isJson: isJson };
+      });
+    }, function (e) {
+      throw new JiraError('unreachable', 'Confluence could not be reached (' + (e && e.message || e) + ')');
+    });
+  }
+
+  /**
+   * Which Jira to use: settings.jiraServer if set, otherwise the Jira this
+   * Confluence links to by default (selected / primary, else the first).
+   */
+  jira.resolveServer = function () {
+    if (jira.server) { return Promise.resolve(jira.server); }
+    return raw(contextPath() + '/rest/jiraanywhere/1.0/servers').then(function (r) {
+      if (r.res.status === 401) { throw new JiraError('notSignedIn', 'You are not signed in to Confluence'); }
+      if (!r.res.ok || !r.isJson) {
+        throw new JiraError('noLink', 'Confluence did not list its Jira links (HTTP ' + r.res.status + ')', { status: r.res.status });
+      }
+      var list = Array.isArray(r.body) ? r.body : (r.body && r.body.servers) || [];
+      if (!list.length) { throw new JiraError('noLink', 'This Confluence is not linked to any Jira'); }
+      var want = String(settings().jiraServer || '').trim().toLowerCase().replace(/\/+$/, '');
+      var hit = null;
+      if (want) {
+        hit = list.filter(function (x) {
+          return [x.id, x.name, x.url].some(function (v) { return String(v || '').toLowerCase().replace(/\/+$/, '') === want; });
+        })[0];
+        if (!hit) { throw new JiraError('noLink', 'No Jira link called "' + settings().jiraServer + '" (jiraServer in the macro)'); }
+      } else {
+        hit = list.filter(function (x) { return x.selected || x.primary; })[0] || list[0];
+      }
+      jira.server = { id: String(hit.id), name: hit.name || 'Jira', url: String(hit.url || '').replace(/\/+$/, ''), authUrl: hit.authUrl || '' };
+      return jira.server;
+    });
+  };
+
+  /** "Allow access" address from a 401 answer, if Jira gave one (not the realm). */
+  function readAuthUrl(r) {
+    var h = r.res.headers.get('WWW-Authenticate') || '';
+    var m = /oauth_authori[sz]ation_uri="([^"]+)"/i.exec(h);
+    if (m) { return m[1]; }
+    var b = r.body && typeof r.body === 'object' ? r.body : {};
+    return b.authorisationURI || b.authorizationUri || b.authUrl || (jira.server && jira.server.authUrl) || null;
+  }
+
+  /** GET a Jira REST path (e.g. "/rest/api/2/myself") through Confluence's link proxy. */
+  jira.get = function (path) {
+    return jira.resolveServer().then(function (srv) {
+      function viaProxy(p) {
+        return contextPath() + '/plugins/servlet/applinks/proxy?appId=' + encodeURIComponent(srv.id) +
+          '&path=' + encodeURIComponent(p);
+      }
+      return raw(viaProxy(absolutePath ? srv.url + path : path)).then(function (r) {
+        // A non-JSON answer means the proxy did not reach Jira's REST API with
+        // that form of path: try the other form once and keep it if it works.
+        if (!r.isJson && r.res.status !== 401 && srv.url) {
+          return raw(viaProxy(absolutePath ? path : srv.url + path)).then(function (r2) {
+            if (r2.isJson || r2.res.status === 401) { absolutePath = !absolutePath; return r2; }
+            return r;
           });
         }
-        if (res.status === 403) {
-          throw new JiraError('noPermission', 'Permission denied', { status: 403 });
-        }
-        if (res.status === 404 && /application ?link/i.test(text)) {
-          throw new JiraError('noLink', 'Application link not found', { status: 404 });
-        }
-        if (res.status === 404) {
-          throw new JiraError('notFound', 'Not found', { status: 404 });
-        }
-        if (res.status >= 500) {
-          throw new JiraError('unreachable', 'Jira did not answer (HTTP ' + res.status + ')', { status: res.status });
-        }
-        throw new JiraError('http', 'Jira answered HTTP ' + res.status, { status: res.status });
+        return r;
       });
-    }, function () {
-      throw new JiraError('unreachable', 'Jira could not be reached');
+    }).then(function (r) {
+      var st = r.res.status;
+      if (st === 401) {
+        throw new JiraError('notAuthorised', 'Jira needs you to allow Confluence to use your Jira account', { status: 401, authUrl: readAuthUrl(r) });
+      }
+      if (st === 403 && !r.isJson) {
+        throw new JiraError('proxyBlocked', 'Confluence refused to pass the call to Jira (HTTP 403)', { status: 403 });
+      }
+      if (st >= 500 || (!r.isJson && st !== 404)) {
+        throw new JiraError('unreachable', 'Jira did not answer through Confluence (HTTP ' + st + ')', { status: st });
+      }
+      if (st === 403) { throw new JiraError('noPermission', 'Permission denied', { status: 403 }); }
+      if (st === 404) { throw new JiraError('notFound', 'Not found', { status: 404 }); }
+      if (!r.res.ok) {
+        var b = r.body || {};
+        throw new JiraError('http', (b.errorMessages && b.errorMessages.join(' ')) || 'Jira answered HTTP ' + st, { status: st });
+      }
+      return r.body;
     });
   };
 

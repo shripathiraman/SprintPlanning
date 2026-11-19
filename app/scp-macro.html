@@ -3,22 +3,21 @@
 
   Paste this into the HTML macro on the restricted planning page ("Sprint planning — <Squad>").
   The CSS and JS are attachments of this same page; the loader below reads the
-  page ID that Confluence prints in the page, so nothing here needs editing
-  except the application link ID.
+  page ID that Confluence prints in the page, and Jira is found through
+  Confluence's own link to Jira, so nothing here needs editing.
 -->
 <div id="scp-root"></div>
 <script>
   (function () {
     'use strict';
 
-    /* ---- The one setting to fill in ------------------------------------
-       Application link ID of jira.group.bank in this Confluence: the same link
-       the Release Impact readiness checklist uses (Confluence admin >
-       Application Links, or ask the Confluence admin). */
+    /* ---- Optional setting ---------------------------------------------
+       jiraServer: "" = the Jira this Confluence links to by default (found
+       automatically, as in the Release Impact admin tool). Set it only to use
+       another linked Jira: its name, address or link id. */
     window.SCP = window.SCP || {};
     window.SCP.settings = window.SCP.settings || {
-      jiraApplinkId: '',
-      jiraBaseUrl: 'https://jira.group.bank'
+      jiraServer: ''
     };
 
     /* Attachments of this page, in load order (PRD File Structure). */

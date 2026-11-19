@@ -290,8 +290,8 @@
       return {
         cls: 'error', title: 'Not authorised: Confluence may not read Jira for you yet',
         detail: (e.authUrl
-          ? '<a href="' + ui.esc(e.authUrl) + '" target="_blank" rel="noopener" data-test="authorise">Authorise access to jira.group.bank</a>, approve, then click Test connection again.'
-          : 'Authorise the jira.group.bank application link for your account (any Jira macro on a Confluence page offers "Login & approve"), then click Test connection again.')
+          ? '<a href="' + ui.esc(e.authUrl) + '" target="_blank" rel="noopener" data-test="authorise">Allow access to jira.group.bank</a> (once per person), approve, then click Test connection again.'
+          : 'Allow Confluence to use your Jira account (any Jira macro on a Confluence page offers "Login & approve"), then click Test connection again.')
       };
     }
     if (e.kind === 'noPermission') {
@@ -304,8 +304,17 @@
     if (e.kind === 'noLink') {
       return {
         cls: 'error', title: 'The Confluence–Jira application link is not configured',
-        detail: 'This page cannot reach jira.group.bank. Contact your Confluence administrator to set up the application link (and its ID in this page’s macro).'
+        detail: ui.esc(e.message) + '. Contact your Confluence administrator to link Confluence to jira.group.bank (Application Links).'
       };
+    }
+    if (e.kind === 'proxyBlocked') {
+      return {
+        cls: 'error', title: 'Confluence refused to pass the call to Jira',
+        detail: 'The Jira link proxy may be switched off. Contact your Confluence administrator.'
+      };
+    }
+    if (e.kind === 'notSignedIn') {
+      return { cls: 'error', title: 'You are not signed in to Confluence', detail: 'Sign in, then click Test connection again.' };
     }
     if (e.kind === 'unreachable') {
       return { cls: 'error', title: 'Jira could not be reached', detail: ui.esc(e.message) + '. Try again in a few minutes.' };

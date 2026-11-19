@@ -144,10 +144,17 @@
     applyOverrides();
     MOCK.calls.push(path);
     if (sc === 'down') { return Promise.reject(new TypeError('Failed to fetch')); }
-    if (sc === 'nolink') { return text(404, 'Couldn\'t find any application link with id mock-link'); }
+
+    if (sc === 'proxyblocked') { return text(403, '<html>Forbidden</html>'); }
+    // Some Confluence versions want Jira's full URL in "path": 'absolute' mimics that.
+    if (path.indexOf('https://jira.group.bank') === 0) {
+      path = path.slice('https://jira.group.bank'.length);
+    } else if (sc === 'absolute') {
+      return text(200, '<html>Confluence page, not Jira</html>', { 'Content-Type': 'text/html' });
+    }
     if (sc === 'unauthorised') {
       return text(401, '', {
-        'WWW-Authenticate': 'OAuth realm="https://jira.group.bank", authorisationURI="https://confluence.example/plugins/servlet/applinks/oauth/login-dance/authorize?applicationLinkID=mock-link"'
+        'WWW-Authenticate': 'OAuth realm="https://jira.group.bank", oauth_authorisation_uri="https://confluence.example/plugins/servlet/applinks/oauth/login-dance/authorize?applicationLinkID=mock-link"'
       });
     }
     var u = new URL(path, 'https://jira.group.bank');
@@ -247,11 +254,21 @@
   /* fetch                                                               */
   /* ------------------------------------------------------------------ */
 
+  /** Confluence's list of linked Jira servers (Release Impact route). */
+  function servers() {
+    var sc = MOCK.scenario();
+    if (sc === 'down') { return Promise.reject(new TypeError('Failed to fetch')); }
+    if (sc === 'nolink') { return json(200, []); }
+    return json(200, [{ id: 'mock-link', name: 'jira.group.bank', url: 'https://jira.group.bank', selected: true }]);
+  }
+
   var realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     var url = typeof input === 'string' ? input : input.url;
     var u = new URL(url, location.href);
+    if (u.pathname === '/rest/jiraanywhere/1.0/servers') { return servers(); }
     if (u.pathname.indexOf('/plugins/servlet/applinks/proxy') !== -1) {
+      if (u.searchParams.get('appId') !== 'mock-link') { return text(404, 'No such application link'); }
       return jira(u.searchParams.get('path'));
     }
     if (u.pathname.indexOf('/rest/api/content/') === 0 || u.pathname.indexOf('/download/attachments/') === 0) {

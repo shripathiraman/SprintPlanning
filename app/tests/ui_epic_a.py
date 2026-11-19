@@ -60,6 +60,28 @@ def _(app):
     check(tabs_disabled(app), "tabs should stay disabled")
 
 
+@test("US-01 Jira is found through Confluence's linked servers: no link ID set anywhere")
+def _(app):
+    app.open("ok")
+    check(app.page.evaluate("() => window.SCP.settings.jiraServer") == "", "no server configured")
+    check(app.page.evaluate("() => window.SCP.jira.server.id") == "mock-link", "link id discovered")
+    check(app.page.evaluate("() => window.SCP.jira.browseUrl('PCAP-1')") == "https://jira.group.bank/browse/PCAP-1", "browse URL from the link")
+
+
+@test("US-01 Proxy wants Jira's full URL: the planner switches path form and connects")
+def _(app):
+    app.open("absolute")
+    check(tabs_enabled(app), "connected with the absolute path form")
+
+
+@test("US-01 Proxy switched off (HTTP 403, not JSON): says so and whom to contact")
+def _(app):
+    app.open("proxyblocked", wait_connected=False)
+    app.page.wait_for_selector("[data-test=conn-status] >> text=refused to pass the call")
+    check("Confluence administrator" in app.text("[data-test=conn-status]"), app.text("[data-test=conn-status]"))
+    check(tabs_disabled(app), "tabs should stay disabled")
+
+
 @test("US-01 Jira unreachable: reason shown, tabs disabled")
 def _(app):
     app.open("down", wait_connected=False)
