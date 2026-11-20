@@ -367,6 +367,104 @@
     };
   };
 
+  /* ------------------------------------------------------------------ */
+  /* Tab 3 · Capacity (FR-14, FR-16, FR-19)                              */
+  /* ------------------------------------------------------------------ */
+
+  /** Share of a "Both" resource counted toward Dev; the rest is BA (PRD: default 50 / 50). */
+  calc.BOTH_DEV_SHARE = 0.5;
+
+  /**
+   * Planned MD per person from the tickets: each ticket's Dev MD on its
+   * Contributor, BA MD on its Backup Assignee (FR-21), the rest Unassigned.
+   * Returns { byPerson: {id: md}, unassigned, total }.
+   */
+  calc.plannedLoad = function (tickets, config) {
+    var out = { byPerson: {}, unassigned: 0, total: 0 };
+    function add(id, md) {
+      if (!md) { return; }
+      if (id) { out.byPerson[id] = (out.byPerson[id] || 0) + md; } else { out.unassigned += md; }
+    }
+    (tickets || []).forEach(function (t) {
+      var m = calc.ticketMd(t, config);
+      add(m.devPerson, m.dev);
+      add(m.baPerson, m.ba);
+      out.total += m.total;
+    });
+    return out;
+  };
+
+  /**
+   * Leave of one person as short text: consecutive full days as a range,
+   * half days marked, e.g. "Thu 7 – Fri 8 Jan · Thu 21 Jan (½ day)". '' if none.
+   * Leave on an office holiday is ignored (it is not counted either).
+   */
+  calc.leaveText = function (plan, resourceId, days, holidayDates) {
+    var parts = [];
+    var run = null;
+    function close() {
+      if (!run) { return; }
+      if (run.from === run.to) {
+        parts.push(calc.fmtDay(run.from));
+      } else {
+        var a = new Date(calc.isoToMs(run.from));
+        var b = new Date(calc.isoToMs(run.to));
+        var left = calc.WEEKDAY_SHORT[a.getUTCDay()] + ' ' + a.getUTCDate() +
+          (a.getUTCMonth() !== b.getUTCMonth() ? ' ' + calc.MONTH_SHORT[a.getUTCMonth()] : '');
+        parts.push(left + ' – ' + calc.fmtDay(run.to));
+      }
+      run = null;
+    }
+    days.forEach(function (d) {
+      var v = (holidayDates || []).indexOf(d) === -1 ? calc.leaveOn(plan, resourceId, d) : 0;
+      if (v === 1) {
+        if (run) { run.to = d; } else { run = { from: d, to: d }; }
+      } else {
+        close();                                   // a free day, holiday or half day ends a run
+        if (v === 0.5) { parts.push(calc.fmtDay(d) + ' (½ day)'); }
+      }
+    });
+    close();
+    return parts.join(' · ');
+  };
+
+  /**
+   * Gross-to-net capacity of the plan (FR-16, FR-19, Calculation Rules).
+   * rows: one per resource, from calc.resourceCapacity plus leaveText and planned.
+   * totals: gross = W x N; holidays, leave and the ceremony and availability
+   * deductions in days; net per role ("Both" split by BOTH_DEV_SHARE) and in all.
+   * Every figure is unrounded; the screen rounds to one decimal.
+   */
+  calc.capacitySummary = function (plan, config) {
+    var days = calc.sprintDays(plan, config);
+    var load = calc.plannedLoad(plan.tickets, config);
+    var t = { days: days.length, people: 0, gross: 0, holidays: 0, leave: 0, available: 0,
+      afterCeremonies: 0, ceremonies: 0, availabilityLoss: 0, net: 0, dev: 0, ba: 0,
+      planned: load.total, unassigned: load.unassigned };
+    var rows = (plan.resources || []).map(function (r) {
+      var c = calc.resourceCapacity(r, config, plan);
+      c.resource = r;
+      c.leaveText = calc.leaveText(plan, r.id, days, c.holidayDates);
+      c.planned = load.byPerson[r.id] || 0;
+      c.plannedPct = c.net ? c.planned / c.net * 100 : null;
+      t.people++;
+      t.holidays += c.holidays;
+      t.leave += c.leave;
+      t.available += c.available;
+      t.afterCeremonies += c.afterCeremonies || 0;
+      t.net += c.net || 0;
+      var devShare = r.role === 'Dev' ? 1 : r.role === 'BA' ? 0 : calc.BOTH_DEV_SHARE;
+      t.dev += (c.net || 0) * devShare;
+      t.ba += (c.net || 0) * (1 - devShare);
+      return c;
+    });
+    t.gross = t.days * t.people;
+    t.ceremonies = t.available - t.afterCeremonies;
+    t.availabilityLoss = t.afterCeremonies - t.net;
+    t.plannedPct = t.net ? t.planned / t.net * 100 : null;
+    return { rows: rows, totals: t };
+  };
+
   /* Node export for the automated tests. */
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = calc;

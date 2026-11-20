@@ -2,7 +2,7 @@
 
 Nov 19, 2026 · @Shripathi Raman R
 
-Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.6](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
+Version 0.3 (20 Nov 2026: US-09 notes the SM convention for one person doing both Dev and BA). Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.6](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
 
 ## Story index
 
@@ -240,6 +240,8 @@ Screen design: [Tab 1 · Sprint Tickets](screens/screen-1-sprint-tickets.png) �
 - **AC-2 No BA** — **Given** a 2 SP ticket has a Dev but no BA, **when** it loads, **then** Dev 1.8 MD stays on the Dev and BA 1.2 MD goes to Unassigned.
 - **AC-3 Outside bands** — **Given** SP 13 with bands only up to 8, **when** it loads, **then** it is flagged "SP outside bands" and counts 0 MD.
 - **AC-4 Count** — **Given** flags exist, **when** I view the tab, **then** a summary states how many tickets are flagged and why.
+
+**Design notes.** SM convention (agreed 20 Nov 2026): when one person does both the Dev and the BA work on a ticket, name them in both Contributor and Backup Assignee. Leaving Backup Assignee blank flags the ticket "no BA" and sends its BA MD to Unassigned (AC-2), so that person's load would be understated. With the same person in both fields, both cards sit on their row and their load counts both (PRD Edge Cases). Set that person's role to Both in Tab 2, so their net capacity counts half toward Dev and half toward BA (Calculation Rules, default 50 / 50).
 
 **Dependencies.** US-08.
 

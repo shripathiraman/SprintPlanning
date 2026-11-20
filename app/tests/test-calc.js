@@ -277,5 +277,78 @@ test('US-12 a resource with no location has no office holidays', function () {
   eq(calc.resourceCapacity({ id: 'x', location: null }, CAPCFG, S26).holidays, 0);
 });
 
+/* ---------------- US-15 · gross-to-net capacity ---------------- */
+
+var S26RES = [
+  { id: 'lorenzo', name: 'Lorenzo', role: 'Dev', location: 'lu', availability: 100 },
+  { id: 'marc', name: 'Marc', role: 'Dev', location: 'lu', availability: 80 },
+  { id: 'priya', name: 'Priya', role: 'Dev', location: 'ch', availability: 100 },
+  { id: 'gabriela', name: 'Gabriela', role: 'BA', location: 'lu', availability: 100 },
+  { id: 'karthik', name: 'Karthik', role: 'BA', location: 'ch', availability: 100 }];
+
+function s26(extra) {
+  var p = JSON.parse(JSON.stringify(S26));
+  p.resources = JSON.parse(JSON.stringify(S26RES));
+  p.tickets = [];
+  return Object.assign(p, extra || {});
+}
+
+test('US-15 AC-1 gross = 15 working days x 5 resources = 75 MD', function () {
+  var p = s26();
+  p.sprint = AUG.sprint;
+  p.leave = {};
+  eq(calc.capacitySummary(p, CAPCFG).totals.gross, 75);
+});
+
+test('US-15 AC-2 worked example in the summary: LU Dev 80%, 2 leave, 1 LU holiday -> 8.2 (8.16)', function () {
+  var p = s26({ sprint: AUG.sprint, leave: { marc: { '2026-08-04': 1, '2026-08-05': 1 } } });
+  var marc = calc.capacitySummary(p, CAPCFG).rows[1];
+  eq([marc.days, marc.holidays, marc.leave, calc.fmt1(marc.net), Math.round(marc.net * 1000) / 1000], [15, 1, 2, '8.2', 8.16]);
+});
+
+test('US-15 Sprint 26 strip: 75.0, -2.0, -3.5, -10.4 of 69.5, -2.2, net 56.9 (Dev 33.5, BA 23.4)', function () {
+  var t = calc.capacitySummary(s26(), CAPCFG).totals;
+  eq([t.gross, t.holidays, t.leave, calc.fmt1(t.available), calc.fmt1(t.ceremonies), calc.fmt1(t.availabilityLoss),
+    calc.fmt1(t.net), calc.fmt1(t.dev), calc.fmt1(t.ba), calc.fmt1(t.afterCeremonies)],
+  [75, 2, 3.5, '69.5', '10.4', '2.2', '56.9', '33.5', '23.4', '59.1']);
+});
+
+test('US-15 AC-3 steps add up: gross - holidays - leave - ceremonies - availability = net, and Dev + BA = net', function () {
+  var t = calc.capacitySummary(s26(), CAPCFG).totals;
+  eq(Math.abs(t.gross - t.holidays - t.leave - t.ceremonies - t.availabilityLoss - t.net) < 1e-9, true, 'strip');
+  eq(Math.abs(t.dev + t.ba - t.net) < 1e-9, true, 'roles');
+  calc.capacitySummary(s26(), CAPCFG).rows.forEach(function (c) {
+    eq(Math.abs((c.days - c.holidays - c.leave) * 0.85 * c.availability / 100 - c.net) < 1e-9, true, c.resource.id);
+  });
+});
+
+test('US-15 role Both counts half toward Dev and half toward BA (PRD default 50 / 50)', function () {
+  var p = s26();
+  p.resources[0].role = 'Both';                                     // Lorenzo 12.75
+  var t = calc.capacitySummary(p, CAPCFG).totals;
+  eq([calc.fmt1(t.dev), calc.fmt1(t.ba)], ['27.1', '29.8']);       // 33.49 - 6.375, 23.375 + 6.375
+});
+
+test('US-15 leave text: ranges of full days, half days marked, holidays skipped', function () {
+  var days = calc.sprintDays(S26, CAPCFG);
+  eq(calc.leaveText(S26, 'marc', days, []), 'Thu 7 – Fri 8 Jan');
+  eq(calc.leaveText(S26, 'gabriela', days, []), 'Tue 19 Jan');
+  eq(calc.leaveText(S26, 'karthik', days, ['2027-01-14']), 'Thu 21 Jan (½ day)');
+  eq(calc.leaveText(S26, 'lorenzo', days, []), '');
+  var p = { leave: { x: { '2027-01-08': 1, '2027-01-11': 1, '2027-01-13': 0.5, '2027-01-14': 1, '2027-01-15': 1 } } };
+  eq(calc.leaveText(p, 'x', days, ['2027-01-14']), 'Fri 8 – Mon 11 Jan · Wed 13 Jan (½ day) · Fri 15 Jan',
+    'a weekend does not break a run; a holiday does');
+});
+
+test('US-15 planned load: Dev MD on the Contributor, BA MD on the Backup Assignee, missing half unassigned', function () {
+  var tickets = [
+    { key: 'A', sp: 3, dev: [{ id: 'marc' }], ba: [{ id: 'gabriela' }] },                       // 5 MD: Dev 3.0, BA 2.0
+    { key: 'B', sp: 2, dev: [{ id: 'priya' }, { id: 'marc' }], devPick: 'marc', ba: [] },        // 3 MD: Dev 1.8 on Marc, BA 1.2 unassigned
+    { key: 'C', sp: null, dev: [{ id: 'priya' }], ba: [{ id: 'karthik' }] }];                    // no SP: 0 MD
+  var l = calc.plannedLoad(tickets, CAPCFG);
+  eq([calc.fmt1(l.byPerson.marc), calc.fmt1(l.byPerson.gabriela), calc.fmt1(l.unassigned), l.total, l.byPerson.priya],
+    ['4.8', '2.0', '1.2', 8, undefined]);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

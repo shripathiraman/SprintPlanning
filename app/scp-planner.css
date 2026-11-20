@@ -310,3 +310,27 @@
 .scp-leave.is-hol { background: var(--scp-hol-bg); border-color: #d4ccee; color: var(--scp-hol); cursor: not-allowed; }
 .scp-oneoff { margin-top: 14px; background: var(--scp-bg); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .scp-oneoff .scp-inline { align-items: flex-end; gap: 12px; }
+
+/* ---------------- Tab 3 · Capacity (US-15) ---------------- */
+.scp-readonly { font-size: 12px; align-self: center; }
+.scp-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.scp-stat { background: var(--scp-bg); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+.scp-stat__label { font-size: 12px; color: var(--scp-muted); }
+.scp-stat__value { font-size: 22px; font-weight: 700; }
+.scp-stat__note { font-size: 12px; color: var(--scp-muted); }
+.scp-stat--net { background: #16202e; color: #fff; }
+.scp-stat--net .scp-stat__label, .scp-stat--net .scp-stat__note { color: #c9d0db; }
+.scp-role { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
+.scp-role--dev { background: var(--scp-dev-bg); color: #1d3f91; }
+.scp-role--ba { background: var(--scp-ba-bg); color: #7a3e0a; }
+.scp-role--both { background: #ece8f7; color: var(--scp-hol); }
+.scp-captable { min-width: 1180px; font-size: 13px; }
+.scp-captable td.num, .scp-captable th.num { text-align: right; }
+.scp-captable .scp-strong { font-weight: 700; }
+.scp-captable tfoot th, .scp-captable tfoot td { background: #f6f7f9; font-weight: 700; border-bottom: 0; }
+.scp-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.scp-rolecard { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; }
+.scp-rolecard__text { display: flex; flex-direction: column; gap: 2px; }
+.scp-rolecard__value { font-weight: 700; font-size: 18px; }
+@media (max-width: 1100px) { .scp-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.scp-captable tbody th { border-bottom-color: #eef0f3; }
