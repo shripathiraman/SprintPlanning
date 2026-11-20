@@ -197,5 +197,85 @@ test('FR-10 date labels: "Mon 4 – Fri 22 Jan 2027" and "25 Jan–12 Feb"', fun
   eq(calc.fmtShortRange('2027-01-25', '2027-02-12'), '25 Jan–12 Feb');
 });
 
+/* ---------------- US-12 / US-13 / US-14 · holidays, leave, net ---------------- */
+
+var CAPCFG = {
+  workingWeek: calc.DEFAULT_WEEK, ceremonyPct: 15, bands: B, split: SPLIT,
+  locations: [
+    { id: 'lu', name: 'Luxembourg', holidays: [{ date: '2026-08-14', name: 'LU holiday' }] },
+    { id: 'ch', name: 'Chennai', holidays: [{ date: '2027-01-14', name: 'Pongal' }] }]
+};
+var AUG = { sprint: { start: '2026-08-03', end: '2026-08-21' }, leave: {}, oneOffs: [] };
+var S26 = { sprint: { start: '2027-01-04', end: '2027-01-22' }, oneOffs: [],
+  leave: { marc: { '2027-01-07': 1, '2027-01-08': 1 }, gabriela: { '2027-01-19': 1 }, karthik: { '2027-01-21': 0.5 } } };
+
+test('FR-18 / US-15 worked example: LU Dev 80%, 2 leave, 1 LU holiday, 15% = 8.16 (8.2)', function () {
+  var plan = JSON.parse(JSON.stringify(AUG));
+  plan.leave.marc = { '2026-08-04': 1, '2026-08-05': 1 };
+  var c = calc.resourceCapacity({ id: 'marc', location: 'lu', availability: 80 }, CAPCFG, plan);
+  eq([c.days, c.holidays, c.leave], [15, 1, 2]);
+  eq(calc.round1(c.net), 8.2);
+  eq(Math.round(c.net * 1000) / 1000, 8.16);
+});
+
+test('FR-17 one LU holiday, 3 LU + 2 Chennai resources, 15 days = 72 MD before ceremonies', function () {
+  var people = [['a', 'lu'], ['b', 'lu'], ['c', 'lu'], ['d', 'ch'], ['e', 'ch']];
+  var sum = people.reduce(function (s, p) {
+    return s + calc.resourceCapacity({ id: p[0], location: p[1], availability: 100 }, CAPCFG, AUG).available;
+  }, 0);
+  eq(sum, 72);
+});
+
+test('US-06 AC-1 / FR-27 Pongal reduces only Chennai resources', function () {
+  eq(calc.resourceCapacity({ id: 'priya', location: 'ch' }, CAPCFG, S26).holidays, 1);
+  eq(calc.resourceCapacity({ id: 'lorenzo', location: 'lu' }, CAPCFG, S26).holidays, 0);
+});
+
+test('US-13 AC-3 Marc: 2 full days leave, 80%, 15% ceremonies -> leave 2.0, net 8.8', function () {
+  var c = calc.resourceCapacity({ id: 'marc', location: 'lu', availability: 80 }, CAPCFG, S26);
+  eq([c.leave, calc.fmt1(c.net)], [2, '8.8']);
+});
+
+test('Sprint 26 design numbers: 12.8 / 8.8 / 11.9 / 11.9 / 11.5, total 56.9, rate 0.68 and 0.85', function () {
+  var R = [['lorenzo', 'lu', 100], ['marc', 'lu', 80], ['priya', 'ch', 100], ['gabriela', 'lu', 100], ['karthik', 'ch', 100]];
+  var nets = R.map(function (r) { return calc.resourceCapacity({ id: r[0], location: r[1], availability: r[2] }, CAPCFG, S26); });
+  eq(nets.map(function (c) { return calc.fmt1(c.net); }), ['12.8', '8.8', '11.9', '11.9', '11.5']);
+  eq(calc.fmt1(nets.reduce(function (s, c) { return s + c.net; }, 0)), '56.9');
+  eq([Math.round(nets[1].rate * 100) / 100, nets[0].rate], [0.68, 0.85]);
+});
+
+test('US-13 leave on an office-holiday day is not counted twice', function () {
+  var plan = JSON.parse(JSON.stringify(S26));
+  plan.leave.priya = { '2027-01-14': 1 };
+  var c = calc.resourceCapacity({ id: 'priya', location: 'ch' }, CAPCFG, plan);
+  eq([c.holidays, c.leave, c.available], [1, 0, 14]);
+});
+
+test('US-14 AC-2 a Luxembourg one-off holiday reduces only Luxembourg resources', function () {
+  var plan = JSON.parse(JSON.stringify(S26));
+  plan.oneOffs = [{ date: '2027-01-22', name: 'Office closure', locations: ['lu'] }];
+  var hl = calc.sprintHolidays('lu', CAPCFG, plan);
+  eq(hl, [{ date: '2027-01-22', name: 'Office closure', source: 'oneoff' }]);
+  eq(calc.resourceCapacity({ id: 'lorenzo', location: 'lu' }, CAPCFG, plan).holidays, 1);
+  eq(calc.resourceCapacity({ id: 'priya', location: 'ch' }, CAPCFG, plan).holidays, 1, 'only Pongal');
+});
+
+test('US-14 holidays outside the sprint are ignored; calendar and one-off on one day count once', function () {
+  var plan = JSON.parse(JSON.stringify(S26));
+  plan.oneOffs = [{ date: '2027-01-14', name: 'Closure', locations: ['ch'] }, { date: '2027-02-01', name: 'Later', locations: ['ch'] }];
+  eq(calc.sprintHolidays('ch', CAPCFG, plan).map(function (h) { return h.date + ' ' + h.source; }), ['2027-01-14 calendar']);
+});
+
+test('US-05 AC-1 no ceremony % -> net is not computed (null)', function () {
+  var cfg = JSON.parse(JSON.stringify(CAPCFG));
+  cfg.ceremonyPct = null;
+  var c = calc.resourceCapacity({ id: 'lorenzo', location: 'lu' }, cfg, S26);
+  eq([c.available, c.net], [15, null]);
+});
+
+test('US-12 a resource with no location has no office holidays', function () {
+  eq(calc.resourceCapacity({ id: 'x', location: null }, CAPCFG, S26).holidays, 0);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

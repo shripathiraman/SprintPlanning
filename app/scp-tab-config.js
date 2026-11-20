@@ -87,6 +87,17 @@
   /* Jira loading (US-01, US-02)                                         */
   /* ------------------------------------------------------------------ */
 
+  /** Bring the Locations & office holidays card into view (link from Tab 2, US-14 AC-3). */
+  tab.showLocations = function () {
+    setTimeout(function () {
+      var el = SCP.state.root && SCP.state.root.querySelector('#scp-locations');
+      if (el) {
+        if (el.scrollIntoView) { el.scrollIntoView({ block: 'start' }); }
+        el.focus({ preventScroll: true });
+      }
+    }, 0);
+  };
+
   /** Test connection (US-01). Also called once at page load by scp-app.js. */
   tab.testConnection = function () {
     var st = S();
@@ -302,7 +313,7 @@
       return { cls: 'neutral', title: 'Testing the connection…', detail: '' };
     }
     if (conn.status === 'ok') {
-      return { cls: 'ok', title: 'Connected as ' + ui.esc(conn.user), detail: 'jira.group.bank · via Confluence application link · no API token stored' };
+      return { cls: 'ok', title: 'Connected as ' + ui.esc(conn.user), detail: ui.esc(SCP.jira.hostName()) + ' · via Confluence application link · no API token stored' };
     }
     if (conn.status === 'idle' || !e) {
       return { cls: 'neutral', title: 'Not tested yet', detail: 'Tabs 1–4 open once the connection test passes.' };
@@ -311,14 +322,14 @@
       return {
         cls: 'error', title: 'Not authorised: Confluence may not read Jira for you yet',
         detail: (e.authUrl
-          ? '<a href="' + ui.esc(e.authUrl) + '" target="_blank" rel="noopener" data-test="authorise">Allow access to jira.group.bank</a> (once per person), approve, then click Test connection again.'
+          ? '<a href="' + ui.esc(e.authUrl) + '" target="_blank" rel="noopener" data-test="authorise">Allow access to ' + ui.esc(SCP.jira.hostName()) + '</a> (once per person), approve, then click Test connection again.'
           : 'Allow Confluence to use your Jira account (any Jira macro on a Confluence page offers "Login & approve"), then click Test connection again.')
       };
     }
     if (e.kind === 'noLink') {
       return {
         cls: 'error', title: 'The Confluence–Jira application link is not configured',
-        detail: ui.esc(e.message) + '. Contact your Confluence administrator to link Confluence to jira.group.bank (Application Links).'
+        detail: ui.esc(e.message) + '. Contact your Confluence administrator to link Confluence to Jira (Application Links).'
       };
     }
     if (e.kind === 'proxyBlocked') {
@@ -593,7 +604,7 @@
         inSprintChip(l) + '</button>' +
         (open ? renderLocationEditor(l) : '') + '</div>';
     }).join('');
-    return '<section class="scp-card">' +
+    return '<section class="scp-card" id="scp-locations" data-test="locations-card" tabindex="-1">' +
       '<div class="scp-card__head"><h2>Locations &amp; office holidays</h2><button type="button" class="scp-btn" data-act="loc-add">Add location</button></div>' +
       (list || '<div class="scp-muted">No locations yet. Add one per office (e.g. Luxembourg, Chennai) with its holidays for the year.</div>') +
       '</section>';

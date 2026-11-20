@@ -25,6 +25,7 @@ def _(app):
     status = app.text("[data-test=conn-status]")
     check("Connected as Shripathi Raman Radhakrishnan" in status, status)
     check("no API token stored" in status, status)
+    check("jira.northwind.example · via Confluence" in status, "names the linked Jira: " + status)
     check(tabs_enabled(app), "tabs 1-4 should be enabled")
     app.page.click("[data-act=test]")            # clicking Test connection again also works
     app.page.wait_for_selector("[data-test=conn-status] >> text=Connected as")
@@ -56,7 +57,7 @@ def _(app):
     app.open("ok")
     check(app.page.evaluate("() => window.SCP.settings.jiraServer") == "", "no server configured")
     check(app.page.evaluate("() => window.SCP.jira.server.id") == "mock-link", "link id discovered")
-    check(app.page.evaluate("() => window.SCP.jira.browseUrl('PCAP-1')") == "https://jira.group.bank/browse/PCAP-1", "browse URL from the link")
+    check(app.page.evaluate("() => window.SCP.jira.browseUrl('PCAP-1')") == "https://jira.northwind.example/browse/PCAP-1", "browse URL from the link")
 
 
 @test("US-01 Proxy wants Jira's full URL: the planner switches path form and connects")

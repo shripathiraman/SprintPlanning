@@ -83,6 +83,7 @@
     }
     view.busy = true;
     SCP.app.render();
+    var prev = p;
     return SCP.jira.sprintIssues(s.id, cfg()).then(function (issues) {
       S().plan = {
         schemaVersion: 1,
@@ -97,6 +98,8 @@
         oneOffs: [],
         cards: []
       };
+      // Resources pre-filled from the tickets and the last plan's team (US-12 AC-1).
+      if (SCP.tabs.resources) { SCP.tabs.resources.sync(S().plan, prev); }
       view.busy = false;
       view.selected = null;
       SCP.app.markDirty();
@@ -186,6 +189,8 @@
       p.changes = changes;
       p.tickets = fresh;
       p.sprint = sprint;
+      // People new on the tickets join Tab 2, tagged when outside the team (US-12 AC-2).
+      if (SCP.tabs.resources) { SCP.tabs.resources.sync(p, null); }
       if (SCP.tabs.calendar && SCP.tabs.calendar.afterReload) { SCP.tabs.calendar.afterReload(); }
       view.busy = false;
       SCP.app.markDirty();

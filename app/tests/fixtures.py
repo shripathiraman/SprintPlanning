@@ -39,3 +39,22 @@ def saved_config(**over):
 
 def att(name, body, version=1, by="Shripathi R.", when="2026-11-19T17:55:00.000Z"):
     return {name: {"id": "att-" + name, "title": name, "version": version, "by": by, "when": when, "body": json.dumps(body)}}
+
+
+def person_res(pid, name, role, loc):
+    return {"id": pid, "name": name, "role": role, "location": loc, "availability": 100, "note": "",
+            "source": "Tickets + team", "notInTeam": False}
+
+
+def last_plan():
+    """A saved Sprint 25 plan whose people are the team: their role and location carry over (US-12 AC-1)."""
+    return {
+        "schemaVersion": 1, "status": "open",
+        "sprint": {"id": 2500, "name": "Sprint 25", "goal": "", "state": "active", "start": "2026-12-07", "end": "2026-12-31"},
+        "loadedAt": "2026-11-20T08:00:00.000Z", "changesSince": None, "changes": None, "tickets": [],
+        "resources": [person_res("lorenzo", "Lorenzo", "Dev", "lu"), person_res("marc", "Marc", "Dev", "lu"),
+                      person_res("priya", "Priya", "Dev", "ch"), person_res("gabriela", "Gabriela", "BA", "lu"),
+                      person_res("karthik", "Karthik", "BA", "ch")],
+        "team": ["lorenzo", "marc", "priya", "gabriela", "karthik"], "removed": [],
+        "leave": {}, "oneOffs": [], "cards": [],
+    }

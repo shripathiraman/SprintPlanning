@@ -1,7 +1,7 @@
 /*
  * scp-jira.js — Sprint Capacity Planner · every Jira call (PRD Integration Points)
  *
- * Jira (jira.group.bank) is read through Confluence's own link to Jira, the
+ * Jira is read through Confluence's own link to Jira, the
  * same route as the Release Impact admin tool: Confluence lists its linked
  * Jira servers, and each call goes through the link proxy signed in as the
  * person using the page. No API token and no link ID are stored (FR-1).
@@ -36,8 +36,16 @@
 
   /** Link to a ticket in Jira (US-08 AC-3). */
   jira.browseUrl = function (key) {
-    var base = (jira.server && jira.server.url) || 'https://jira.group.bank';
-    return base.replace(/\/+$/, '') + '/browse/' + encodeURIComponent(key);
+    if (!jira.server || !jira.server.url) { return '#'; }
+    return jira.server.url.replace(/\/+$/, '') + '/browse/' + encodeURIComponent(key);
+  };
+
+  /** Name of the linked Jira shown in Config messages: its host, else its link name, else "Jira". */
+  jira.hostName = function () {
+    var srv = jira.server;
+    if (!srv) { return 'Jira'; }
+    var m = /^[a-z]+:\/\/([^\/:]+)/i.exec(srv.url || '');
+    return (m && m[1]) || srv.name || 'Jira';
   };
 
   /**

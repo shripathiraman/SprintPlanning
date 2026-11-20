@@ -276,3 +276,37 @@
 .scp-input--key { width: 140px; text-transform: uppercase; font-weight: 600; letter-spacing: .02em; }
 .scp-grid2--tight { gap: 12px; margin: 12px 0; }
 .scp-card.is-stale select, .scp-card.is-stale .scp-chip, .scp-card.is-stale .scp-sprints { opacity: .5; }
+
+/* ---- Tab 2 Resources & Leave -------------------------------------------- */
+
+.scp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.scp select.is-invalid { border-color: var(--scp-bad); }
+.scp-input--note { width: 100%; min-width: 140px; }
+.scp-tag--warn { background: var(--scp-warn-bg); color: var(--scp-warn); }
+.scp-tag--hol { background: var(--scp-hol-bg); color: var(--scp-hol); font-weight: 600; }
+.scp-tag--oneoff { background: #e8effd; color: var(--scp-primary-dark); font-weight: 600; }
+.scp-link--inline { padding: 0; font-size: inherit; }
+.scp-addres { margin-top: 12px; }
+.scp-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--scp-muted); }
+.scp-legend span { display: inline-flex; gap: 6px; align-items: center; }
+.scp-sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
+.scp-sw--full { background: #5a6474; }
+.scp-sw--half { background: linear-gradient(90deg, #5a6474 50%, #eef0f3 50%); }
+.scp-sw--hol { background: var(--scp-hol-bg); }
+.scp-scroll { overflow-x: auto; }
+.scp-grid { min-width: 900px; display: flex; flex-direction: column; gap: 4px; }
+.scp-grid__row { display: grid; gap: 4px; align-items: center; }
+.scp-grid__head { font-size: 11px; color: var(--scp-muted); text-align: center; }
+.scp-grid__day { display: flex; flex-direction: column; }
+.scp-grid__day b { font-size: 13px; color: var(--scp-text); }
+.scp-grid__name { font-weight: 600; font-size: 13px; }
+.scp-leave {
+  height: 44px; border-radius: 6px; border: 1px solid var(--scp-line); background: #fff;
+  font-size: 10px; font-weight: 600; color: var(--scp-text); cursor: pointer; padding: 0;
+}
+.scp-leave:hover:not(:disabled) { border-color: #5a6474; }
+.scp-leave.is-full { background: #5a6474; border-color: #5a6474; color: #fff; }
+.scp-leave.is-half { background: linear-gradient(90deg, #5a6474 50%, #eef0f3 50%); border-color: #5a6474; }
+.scp-leave.is-hol { background: var(--scp-hol-bg); border-color: #d4ccee; color: var(--scp-hol); cursor: not-allowed; }
+.scp-oneoff { margin-top: 14px; background: var(--scp-bg); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.scp-oneoff .scp-inline { align-items: flex-end; gap: 12px; }

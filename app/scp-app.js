@@ -127,8 +127,16 @@
 
   /** Message that blocks a tab, or null (US-05 AC-1). */
   app.gate = function (tabId) {
-    if ((tabId === 'capacity' || tabId === 'calendar') && !ui.isNum(state.config.ceremonyPct)) {
-      return 'Team ceremony % is not set. Capacity and the Planning Calendar need it: set it in Config → Team rules.';
+    if (tabId !== 'capacity' && tabId !== 'calendar') { return null; }
+    if (!ui.isNum(state.config.ceremonyPct)) {
+      return { msg: 'Team ceremony % is not set. Capacity and the Planning Calendar need it: set it in Config \u2192 Team rules.',
+        tab: 'config', label: 'Open Config' };
+    }
+    // A resource with no location blocks the capacity calculation (FR-15, US-12 AC-3).
+    var missing = SCP.tabs.resources && SCP.tabs.resources.missingLocation ? SCP.tabs.resources.missingLocation() : [];
+    if (missing.length) {
+      return { msg: 'Capacity needs a location for every resource. Set it for ' + missing.map(function (r) { return r.name; }).join(', ') +
+        ' in 2 \u00b7 Resources & Leave.', tab: 'resources', label: 'Open Resources & Leave' };
     }
     return null;
   };
@@ -191,9 +199,9 @@
     if (blocked) {
       app.defaultHead(head);
       body.innerHTML = '<div class="scp-card scp-blocked" data-test="blocked">' +
-        '<p>' + ui.esc(blocked) + '</p>' +
-        '<button type="button" class="scp-btn" data-goto="config">Open Config</button></div>';
-      body.querySelector('[data-goto]').addEventListener('click', function () { app.setTab('config'); });
+        '<p>' + ui.esc(blocked.msg) + '</p>' +
+        '<button type="button" class="scp-btn" data-goto="' + blocked.tab + '">' + ui.esc(blocked.label) + '</button></div>';
+      body.querySelector('[data-goto]').addEventListener('click', function () { app.setTab(blocked.tab); });
       return;
     }
     if (!tab) {

@@ -297,6 +297,76 @@
     return out;
   };
 
+  /* ------------------------------------------------------------------ */
+  /* FR-17, FR-18, FR-19, FR-30 · Holidays, leave and net capacity       */
+  /* ------------------------------------------------------------------ */
+
+  /** The sprint's working days for a plan, with the config's working week. */
+  calc.sprintDays = function (plan, config) {
+    if (!plan || !plan.sprint || !plan.sprint.start) { return []; }
+    return calc.workingDays(plan.sprint.start, plan.sprint.end, config.workingWeek);
+  };
+
+  /**
+   * Office holidays in the sprint for one location: the location's yearly
+   * calendar plus the plan's one-off holidays chosen for it (FR-17).
+   * Returns [{ date, name, source: 'calendar' | 'oneoff' }], one per date.
+   */
+  calc.sprintHolidays = function (locationId, config, plan) {
+    var days = calc.sprintDays(plan, config);
+    var out = [];
+    var seen = {};
+    function add(date, name, source) {
+      if (days.indexOf(date) === -1 || seen[date]) { return; }
+      seen[date] = true;
+      out.push({ date: date, name: name, source: source });
+    }
+    var loc = (config.locations || []).filter(function (l) { return l.id === locationId; })[0];
+    if (loc) { (loc.holidays || []).forEach(function (h) { add(h.date, h.name, 'calendar'); }); }
+    ((plan && plan.oneOffs) || []).forEach(function (o) {
+      if ((o.locations || []).indexOf(locationId) !== -1) { add(o.date, o.name, 'oneoff'); }
+    });
+    out.sort(function (a, b) { return a.date.localeCompare(b.date); });
+    return out;
+  };
+
+  /** Leave value of one day: 1 = full day, 0.5 = half day, 0 = working (FR-18). */
+  calc.leaveOn = function (plan, resourceId, date) {
+    var l = plan && plan.leave && plan.leave[resourceId];
+    return l && l[date] ? l[date] : 0;
+  };
+
+  /**
+   * Net capacity of one resource (FR-19):
+   * (working days - office holidays - leave) x (1 - ceremony %) x availability %.
+   * Leave on an office-holiday day is not counted twice.
+   * ceremonyPct may be null (not set yet): net is then null.
+   * Values are unrounded; display them with fmt1.
+   */
+  calc.resourceCapacity = function (resource, config, plan) {
+    var days = calc.sprintDays(plan, config);
+    var hols = calc.sprintHolidays(resource.location, config, plan).map(function (h) { return h.date; });
+    var leave = 0;
+    days.forEach(function (d) {
+      if (hols.indexOf(d) === -1) { leave += calc.leaveOn(plan, resource.id, d); }
+    });
+    var avail = isNum(resource.availability) ? resource.availability : 100;
+    var base = days.length - hols.length - leave;
+    var cer = isNum(config.ceremonyPct) ? config.ceremonyPct : null;
+    var afterCer = cer === null ? null : base * (1 - cer / 100);
+    return {
+      days: days.length,
+      holidays: hols.length,
+      holidayDates: hols,
+      leave: leave,
+      available: base,
+      afterCeremonies: afterCer,
+      availability: avail,
+      net: afterCer === null ? null : afterCer * avail / 100,
+      rate: cer === null ? null : (1 - cer / 100) * avail / 100
+    };
+  };
+
   /* Node export for the automated tests. */
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = calc;

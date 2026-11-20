@@ -147,17 +147,17 @@
 
     if (sc === 'proxyblocked') { return text(403, '<html>Forbidden</html>'); }
     // Some Confluence versions want Jira's full URL in "path": 'absolute' mimics that.
-    if (path.indexOf('https://jira.group.bank') === 0) {
-      path = path.slice('https://jira.group.bank'.length);
+    if (path.indexOf('https://jira.northwind.example') === 0) {
+      path = path.slice('https://jira.northwind.example'.length);
     } else if (sc === 'absolute') {
       return text(200, '<html>Confluence page, not Jira</html>', { 'Content-Type': 'text/html' });
     }
     if (sc === 'unauthorised') {
       return text(401, '', {
-        'WWW-Authenticate': 'OAuth realm="https://jira.group.bank", oauth_authorisation_uri="https://confluence.example/plugins/servlet/applinks/oauth/login-dance/authorize?applicationLinkID=mock-link"'
+        'WWW-Authenticate': 'OAuth realm="https://jira.northwind.example", oauth_authorisation_uri="https://confluence.example/plugins/servlet/applinks/oauth/login-dance/authorize?applicationLinkID=mock-link"'
       });
     }
-    var u = new URL(path, 'https://jira.group.bank');
+    var u = new URL(path, 'https://jira.northwind.example');
     var p = u.pathname;
     var m;
     if (p === '/rest/api/2/myself') { return json(200, FIX.myself); }
@@ -213,9 +213,9 @@
   /* Confluence attachments                                              */
   /* ------------------------------------------------------------------ */
 
-  function confluence(u, init) {
+  function confluence(u, init, path) {
     var method = (init && init.method) || 'GET';
-    var p = u.pathname;
+    var p = path || u.pathname;
     var a = atts();
     var m;
     if (method === 'GET' && p === '/rest/api/content/' + PAGE_ID + '/child/attachment') {
@@ -259,20 +259,22 @@
     var sc = MOCK.scenario();
     if (sc === 'down') { return Promise.reject(new TypeError('Failed to fetch')); }
     if (sc === 'nolink') { return json(200, []); }
-    return json(200, [{ id: 'mock-link', name: 'jira.group.bank', url: 'https://jira.group.bank', selected: true }]);
+    return json(200, [{ id: 'mock-link', name: 'jira.northwind.example', url: 'https://jira.northwind.example', selected: true }]);
   }
 
   var realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     var url = typeof input === 'string' ? input : input.url;
     var u = new URL(url, location.href);
-    if (u.pathname === '/rest/jiraanywhere/1.0/servers') { return servers(); }
-    if (u.pathname.indexOf('/plugins/servlet/applinks/proxy') !== -1) {
+    // file:///D:/... on Windows: drop the drive so /D:/rest/... matches /rest/...
+    var path = u.protocol === 'file:' ? u.pathname.replace(/^\/[A-Za-z]:(?=\/)/, '') : u.pathname;
+    if (path === '/rest/jiraanywhere/1.0/servers') { return servers(); }
+    if (path.indexOf('/plugins/servlet/applinks/proxy') !== -1) {
       if (u.searchParams.get('appId') !== 'mock-link') { return text(404, 'No such application link'); }
       return jira(u.searchParams.get('path'));
     }
-    if (u.pathname.indexOf('/rest/api/content/') === 0 || u.pathname.indexOf('/download/attachments/') === 0) {
-      return confluence(u, init);
+    if (path.indexOf('/rest/api/content/') === 0 || path.indexOf('/download/attachments/') === 0) {
+      return confluence(u, init, path);
     }
     return realFetch(input, init);
   };

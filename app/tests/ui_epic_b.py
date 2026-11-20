@@ -140,12 +140,12 @@ def _(app):
     check(app.text("[data-test=ticket-facts]") == "10 · 31 · 48.0", app.text("[data-test=ticket-facts]"))
 
 
-@test("US-08 AC-3 A ticket key links to that ticket on jira.group.bank")
+@test("US-08 AC-3 A ticket key links to that ticket on jira.northwind.example")
 def _(app):
     start(app)
     open_plan(app)
     a = app.page.locator("[data-test=tickets] tr[data-key='PCAP-412'] a")
-    check(a.get_attribute("href") == "https://jira.group.bank/browse/PCAP-412", a.get_attribute("href"))
+    check(a.get_attribute("href") == "https://jira.northwind.example/browse/PCAP-412", a.get_attribute("href"))
     check(a.get_attribute("target") == "_blank", "opens in a new tab")
 
 
