@@ -329,14 +329,14 @@ test('US-15 role Both counts half toward Dev and half toward BA (PRD default 50 
   eq([calc.fmt1(t.dev), calc.fmt1(t.ba)], ['27.1', '29.8']);       // 33.49 - 6.375, 23.375 + 6.375
 });
 
-test('US-15 leave text: ranges of full days, half days marked, holidays skipped', function () {
+test('US-15 leave text: ranges of full days, mornings and afternoons marked, holidays skipped', function () {
   var days = calc.sprintDays(S26, CAPCFG);
-  eq(calc.leaveText(S26, 'marc', days, []), 'Thu 7 – Fri 8 Jan');
-  eq(calc.leaveText(S26, 'gabriela', days, []), 'Tue 19 Jan');
-  eq(calc.leaveText(S26, 'karthik', days, ['2027-01-14']), 'Thu 21 Jan (½ day)');
+  eq(calc.leaveText(S26, 'marc', days, []), 'Thu 7 – Fri 8 Jan (Full day)');
+  eq(calc.leaveText(S26, 'gabriela', days, []), 'Tue 19 Jan (Full day)');
+  eq(calc.leaveText(S26, 'karthik', days, ['2027-01-14']), 'Thu 21 Jan (Morning)');
   eq(calc.leaveText(S26, 'lorenzo', days, []), '');
-  var p = { leave: { x: { '2027-01-08': 1, '2027-01-11': 1, '2027-01-13': 0.5, '2027-01-14': 1, '2027-01-15': 1 } } };
-  eq(calc.leaveText(p, 'x', days, ['2027-01-14']), 'Fri 8 – Mon 11 Jan · Wed 13 Jan (½ day) · Fri 15 Jan',
+  var p = { leave: { x: { '2027-01-08': 1, '2027-01-11': 1, '2027-01-13': 'pm', '2027-01-14': 1, '2027-01-15': 1 } } };
+  eq(calc.leaveText(p, 'x', days, ['2027-01-14']), 'Fri 8 – Mon 11 Jan (Full day) · Wed 13 Jan (Afternoon) · Fri 15 Jan (Full day)',
     'a weekend does not break a run; a holiday does');
 });
 
@@ -348,6 +348,160 @@ test('US-15 planned load: Dev MD on the Contributor, BA MD on the Backup Assigne
   var l = calc.plannedLoad(tickets, CAPCFG);
   eq([calc.fmt1(l.byPerson.marc), calc.fmt1(l.byPerson.gabriela), calc.fmt1(l.unassigned), l.total, l.byPerson.priya],
     ['4.8', '2.0', '1.2', 8, undefined]);
+});
+
+/* ---------------- US-16 to US-19 · Planning Calendar ---------------- */
+
+function tk(key, sp, dev, ba, summary) {
+  return { key: key, summary: summary || '', type: 'Story', sp: sp,
+    dev: dev ? dev.split('/').map(function (id) { return { id: id, name: id }; }) : [],
+    ba: ba ? ba.split('/').map(function (id) { return { id: id, name: id }; }) : [] };
+}
+/* Sprint 26 after Reload, as in the mock Jira and on the Planning Calendar screen. */
+var S26TICKETS = [tk('NWD-412', 5, 'lorenzo', 'gabriela'), tk('NWD-418', 5, 'priya/marc', 'karthik'),
+  tk('NWD-421', 8, 'marc', 'gabriela'), tk('NWD-427', 2, 'marc', 'karthik'), tk('NWD-430', 3, 'priya', 'gabriela'),
+  tk('NWD-433', 3, 'lorenzo', 'karthik'), tk('NWD-435', 2, 'priya', 'karthik'), tk('NWD-438', 1, 'lorenzo', 'gabriela'),
+  tk('NWD-441', 2, 'marc', ''), tk('NWD-444', null, '', '')];
+
+function s26cal(cards) {
+  var p = s26({ tickets: JSON.parse(JSON.stringify(S26TICKETS)), cards: cards || [] });
+  return calc.planCalendar(p, CAPCFG);
+}
+function rowOf(cal, id) { return cal.rows.filter(function (r) { return r.resource.id === id; })[0]; }
+/* Each card part as "KEY start-end md", in tenths of a day as the screen's grid draws it. */
+function geo(row) {
+  var out = [];
+  row.cards.forEach(function (k) {
+    k.parts.forEach(function (p) { out.push(k.key + ' ' + Math.round(p.s * 10) + '-' + Math.round(p.e * 10) + ' ' + calc.fmt1(p.shownMd)); });
+  });
+  return out;
+}
+
+test('US-16 AC-1 two cards per ticket: Dev on the Contributor, BA on the Backup Assignee; 0 MD ticket one grey card', function () {
+  var cards = calc.calendarCards(s26({ tickets: S26TICKETS }), CAPCFG);
+  var c412 = cards.filter(function (k) { return k.key === 'NWD-412'; });
+  eq(c412.map(function (k) { return k.role + ' ' + k.person + ' ' + k.md; }), ['dev lorenzo 4.8', 'ba gabriela 3.2']);
+  eq(cards.filter(function (k) { return k.key === 'NWD-444'; }).map(function (k) { return k.role + ' ' + k.person + ' ' + k.md; }), ['none null 0']);
+});
+
+test('US-16 Sprint 26 rows match the design grid: Lorenzo, Priya (split around Pongal), Gabriela (split around leave)', function () {
+  var cal = s26cal();
+  eq(geo(rowOf(cal, 'lorenzo')), ['NWD-412 0-56 4.8', 'NWD-433 56-92 3.0', 'NWD-438 92-99 0.6']);
+  eq(geo(rowOf(cal, 'priya')), ['NWD-418 0-56 4.8', 'NWD-430 56-80 2.0', 'NWD-430 90-102 1.0', 'NWD-435 102-123 1.8']);
+  eq(geo(rowOf(cal, 'gabriela')), ['NWD-412 0-38 3.2', 'NWD-421 38-94 4.8', 'NWD-430 94-110 1.4', 'NWD-430 120-128 0.6', 'NWD-438 128-132 0.4']);
+  eq(geo(rowOf(cal, 'karthik')), ['NWD-418 0-38 3.2', 'NWD-427 38-52 1.2', 'NWD-433 52-75 2.0', 'NWD-435 75-80 0.4', 'NWD-435 90-99 0.8']);
+});
+
+test('US-16 AC-2/AC-3 Marc at 0.68 MD a day: 7.2 MD card split around leave (2.0 + 5.2), 10.6 days of work, load counts MD', function () {
+  var marc = rowOf(s26cal(), 'marc');
+  eq(geo(marc), ['NWD-421 0-30 2.0', 'NWD-421 50-126 5.2', 'NWD-427 126-152 1.8', 'NWD-441 152-179 1.8']);
+  var c421 = marc.cards[0];
+  var workDays = c421.parts.reduce(function (s, p) { return s + p.e - p.s; }, 0);
+  eq([calc.fmt1(workDays), c421.md, calc.fmt1(marc.load)], ['10.6', 7.2, '10.8']);
+});
+
+test('US-16 AC-4 past sprint end: Marc done at 18.0 days = Wed 27 Jan, 3 days after the sprint; zone shows 4 days', function () {
+  var cal = s26cal();
+  var marc = rowOf(cal, 'marc');
+  eq([marc.done, cal.dates[marc.doneIndex], marc.doneIndex + 1 - cal.W], [18, '2027-01-27', 3]);
+  eq([cal.W, cal.dates.length, cal.dates[15], cal.dates[18]], [15, 19, '2027-01-25', '2027-01-28']);
+  eq(['lorenzo', 'priya', 'gabriela', 'karthik'].map(function (id) { var r = rowOf(cal, id); return r.done + ' ' + cal.dates[r.doneIndex]; }),
+    ['10 2027-01-15', '12.5 2027-01-20', '13.5 2027-01-21', '10 2027-01-15'], 'done Fri 15, Wed 20, Thu 21, Fri 15');
+});
+
+test('US-16 AC-5 Unassigned: NWD-441 BA (no BA named) and NWD-444 (no SP) side by side', function () {
+  var un = s26cal().unassigned;
+  eq(un.map(function (k) { return k.key + ' ' + k.role + ' ' + Math.round(k.s * 10) + '-' + Math.round(k.e * 10); }),
+    ['NWD-441 ba 0-12', 'NWD-444 none 14-34']);
+});
+
+test('US-18 AC-2 At risk: roles fit (Dev 28.8 / 33.5, BA 19.2 / 23.4) but Marc is at 122%', function () {
+  var cal = s26cal();
+  var v = cal.verdict;
+  eq([v.status, calc.fmt1(cal.roles.dev.load), calc.fmt1(cal.roles.dev.net), calc.fmt1(cal.roles.ba.load), calc.fmt1(cal.roles.ba.net)],
+    ['atRisk', '28.8', '33.5', '19.2', '23.4']);
+  eq(v.over.map(function (r) { return r.resource.id + ' ' + Math.round(r.pct) + ' +' + calc.fmt1(r.load - r.net); }), ['marc 122 +2.0']);
+  eq([calc.fmt1(cal.planned), cal.flagged.map(function (f) { return f.key + ':' + f.flags.join(','); })],
+    ['48.0', ['NWD-441:noBa', 'NWD-444:noSp,noDev,noBa']]);
+});
+
+test('US-17 AC-1 / US-18 AC-1 moving Marc\'s NWD-427 then NWD-441 Dev cards to Lorenzo: 102% then Feasible', function () {
+  var one = s26cal([{ key: 'NWD-427', role: 'dev', person: 'lorenzo', start: null }]);
+  eq([calc.fmt1(rowOf(one, 'marc').load), Math.round(rowOf(one, 'marc').pct), calc.fmt1(rowOf(one, 'lorenzo').load), one.verdict.status],
+    ['9.0', 102, '10.2', 'atRisk']);
+  var two = s26cal([{ key: 'NWD-427', role: 'dev', person: 'lorenzo', start: null }, { key: 'NWD-441', role: 'dev', person: 'lorenzo', start: null }]);
+  eq([Math.round(rowOf(two, 'marc').pct), two.verdict.status], [81, 'feasible']);
+});
+
+test('US-17 AC-2 a card dropped at day 3.3 starts at day 3.5; the gap before it stays empty', function () {
+  eq([calc.snapHalf(3.3), calc.snapHalf(3.24), calc.snapHalf(-1)], [3.5, 3, 0]);
+  var cal = s26cal([{ key: 'NWD-441', role: 'dev', person: 'lorenzo', start: calc.snapHalf(11.3) }]);
+  var lo = rowOf(cal, 'lorenzo');
+  eq(geo(lo), ['NWD-412 0-56 4.8', 'NWD-433 56-92 3.0', 'NWD-438 92-99 0.6', 'NWD-441 115-136 1.8']);
+  eq(lo.done, 14, 'the gap moves the Done date');
+});
+
+test('US-17 AC-3 dropped onto another card: later cards move right, none overlap', function () {
+  var cal = s26cal([{ key: 'NWD-441', role: 'dev', person: 'lorenzo', start: 3.5 }]);
+  eq(geo(rowOf(cal, 'lorenzo')), ['NWD-441 35-56 1.8', 'NWD-412 56-113 4.8', 'NWD-433 113-148 3.0', 'NWD-438 148-155 0.6']);
+  var two = s26cal([{ key: 'NWD-441', role: 'dev', person: 'lorenzo', start: 3.5 }, { key: 'NWD-427', role: 'dev', person: 'lorenzo', start: 4 }]);
+  var g = rowOf(two, 'lorenzo').cards.map(function (k) { return [k.key, Math.round(k.s * 10), Math.round(k.e * 10)]; });
+  eq(g.slice(0, 2), [['NWD-441', 35, 56], ['NWD-427', 56, 77]], 'the later card moves right of the earlier one');
+  for (var i = 1; i < g.length; i++) { eq(g[i][1] >= g[i - 1][2], true, 'no overlap at ' + g[i][0]); }
+});
+
+test('US-18 AC-3 Not feasible: BA load above BA net names the biggest gap', function () {
+  var cfg = JSON.parse(JSON.stringify(CAPCFG));
+  cfg.split = { ba: 60, dev: 40 };                                   // BA 28.8 MD > BA net 23.4
+  var p = s26({ tickets: S26TICKETS, cards: [] });
+  var v = calc.planCalendar(p, cfg).verdict;
+  eq([v.status, v.gaps[0].role, calc.fmt1(v.gaps[0].gap)], ['notFeasible', 'ba', '5.4']);
+});
+
+test('US-18 AC-4 a card where its person has no time (0% available) makes the verdict at least At risk', function () {
+  var p = s26({ tickets: [tk('NWD-1', 1, 'lorenzo', 'gabriela')], cards: [] });
+  eq(calc.planCalendar(p, CAPCFG).verdict.status, 'feasible');
+  p.resources[0].availability = 0;
+  var cal = calc.planCalendar(p, CAPCFG);
+  eq([cal.verdict.status, rowOf(cal, 'lorenzo').onAbsence], ['atRisk', true]);
+});
+
+test('US-19 AC-1/AC-2 overload detail lists Marc\'s cards past the sprint end, largest first; without NWD-441 Marc is at 102%', function () {
+  var cal = s26cal();
+  var d = calc.overloadDetail(cal);
+  eq(d.map(function (x) { return x.name + ': ' + x.cards.map(function (k) { return k.key + ' ' + k.role + ' ' + k.md; }).join(', '); }),
+    ['Marc: NWD-441 dev 1.8, NWD-427 dev 1.8']);
+  var w = calc.planWithout(s26({ tickets: S26TICKETS, cards: [] }), CAPCFG, 'NWD-441');
+  eq([Math.round(rowOf(w, 'marc').pct), w.verdict.status], [102, 'atRisk']);
+});
+
+test('US-15 planned load follows calendar moves; a person who is not a resource counts as Unassigned', function () {
+  var p = s26({ tickets: S26TICKETS, cards: [{ key: 'NWD-427', role: 'dev', person: 'lorenzo', start: null }] });
+  var rows = calc.capacitySummary(p, CAPCFG).rows;
+  eq([calc.fmt1(rows[0].planned), calc.fmt1(rows[1].planned)], ['10.2', '9.0']);
+  p.cards = [{ key: 'NWD-427', role: 'dev', person: 'nobody', start: null }];
+  eq(calc.calendarCards(p, CAPCFG).filter(function (k) { return k.id === 'NWD-427|dev'; })[0].person, null);
+});
+
+/* ---------------- US-13 v0.4 · morning or afternoon off ---------------- */
+
+test('US-13 leave kinds: full day, morning, afternoon; a 0.5 saved before v0.7 counts as a morning', function () {
+  var p = { leave: { x: { a: 1, b: 'am', c: 'pm', d: 0.5 } } };
+  eq(['a', 'b', 'c', 'd', 'e'].map(function (d) { return calc.leaveKind(p, 'x', d) + ' ' + calc.leaveOn(p, 'x', d); }),
+    ['full 1', 'am 0.5', 'pm 0.5', 'am 0.5', 'null 0']);
+});
+
+test('US-13 AC-5 afternoon off: Gabriela\'s card runs through the morning of Wed 13, stops at midday, resumes next morning', function () {
+  var p = s26({ tickets: S26TICKETS, cards: [], leave: { gabriela: { '2027-01-13': 'pm' } } });
+  var cal = calc.planCalendar(p, CAPCFG);
+  var g = rowOf(cal, 'gabriela');
+  var abs = g.absences.map(function (a) { return a.s + '-' + a.e + ' ' + a.label; });
+  eq(abs, ['7.5-8 Afternoon']);
+  eq(geo(g).slice(0, 3), ['NWD-412 0-38 3.2', 'NWD-421 38-75 3.2', 'NWD-421 80-99 1.6']);
+  eq([rowOf(cal, 'gabriela').capacity.leave, calc.fmt1(rowOf(cal, 'gabriela').net)], [0.5, '12.3']);
+  var am = calc.planCalendar(s26({ tickets: S26TICKETS, cards: [], leave: { gabriela: { '2027-01-13': 'am' } } }), CAPCFG);
+  eq([rowOf(am, 'gabriela').absences[0].s, rowOf(am, 'gabriela').absences[0].e, rowOf(am, 'gabriela').capacity.leave], [7, 7.5, 0.5],
+    'a morning off blocks the first half and counts the same 0.5');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

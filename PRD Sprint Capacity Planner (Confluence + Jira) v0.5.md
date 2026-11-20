@@ -1,6 +1,6 @@
 # PRD: Sprint Capacity Planner (Confluence + Jira)
 
-Nov 19, 2026 · @Shripathi Raman R · Status: Draft v0.6
+Nov 20, 2026 · @Shripathi Raman R · Status: Draft v0.7
 
 ## Overview
 
@@ -145,8 +145,8 @@ Screen design: [Tab 2 · Resources & Leave](screens/screen-2-resources-leave.png
 
 - FR-15: The resource list is pre-filled from every Dev and BA on the sprint's tickets plus the team's members. The SM can add or remove people and sets each one's role (Dev, BA or Both) and location (from FR-27). A resource with no location blocks the capacity calculation until one is set.
 - FR-17: Office holidays come from each resource's location calendar and are deducted only for resources in that location. The SM can add a one-off holiday for this sprint and choose which locations it applies to.
-- FR-18: Per resource, the SM sets availability % (default 100) and personal leave dates, in full or half days. Availability % covers the person's own non-sprint time (support duty, part-time, other projects); team ceremonies are deducted separately by the ceremony % (FR-7).
-- FR-30: A leave grid shows one row per resource and one column per working day. Clicking a day cycles free → full day → half day → free. Office-holiday days are locked. Each row shows the person's leave total, and each resource shows net MD that updates as leave changes.
+- FR-18: Per resource, the SM sets availability % (default 100) and personal leave dates, as full days or half days; a half day is either the morning or the afternoon. Availability % covers the person's own non-sprint time (support duty, part-time, other projects); team ceremonies are deducted separately by the ceremony % (FR-7).
+- FR-30: A leave grid shows one row per resource and one column per working day. Clicking a day cycles free → Full day → Morning → Afternoon → free, and the cell shows that label. Either half counts as half a day of leave. Office-holiday days are locked. Each row shows the person's leave total, and each resource shows net MD that updates as leave changes.
 - FR-31: The tab lists the office holidays that fall in the sprint, with date, name, locations, source (location calendar or one-off) and capacity effect in days. Yearly location calendars are edited only in Config (FR-27), linked from this list.
 
 #### Tab 3 - Capacity
@@ -168,7 +168,7 @@ Screen design: [Tab 4 · Planning Calendar](screens/screen-4-planning-calendar.p
 - FR-20: The calendar has one row per resource and one column per working day. Office holidays and leave are shaded; sprint start, end and today are marked. Each row header shows load / net capacity in MD (e.g. 16 / 15), coloured by the FR-7 thresholds.
 - FR-21: Each ticket produces a Dev card (Dev MD) on its Contributor's row and a BA card (BA MD) on its Backup Assignee's row. Cards are auto-placed from the first free day; tickets with no person go to an Unassigned lane.
 - FR-22: The SM drags a card to another resource or day. Loads and the verdict update immediately. Dropping a Dev card on a BA-only resource asks for confirmation. A dropped card's start snaps to the nearest half day. If it then overlaps another card on that row, the later cards move right to make room. A gap left by snapping stays empty, counts no load and moves the row's Done date. Auto-placed cards (FR-21) stay packed at their exact lengths.
-- FR-23: Card length is the number of days the work takes for that person: MD divided by the person's daily rate, (1 - ceremony %) x availability %, drawn at its exact length with no rounding per card. Cards on a row follow one another; only the row's finish point is rounded up to the next half day and shown as a Done date in the row header. A card can be split across non-adjacent days and skips leave and holidays. Load still counts MD, not days. Cards that run past the sprint end show in an After sprint end zone at the right of the calendar.
+- FR-23: Card length is the number of days the work takes for that person: MD divided by the person's daily rate, (1 - ceremony %) x availability %, drawn at its exact length with no rounding per card. Cards on a row follow one another; only the row's finish point is rounded up to the next half day and shown as a Done date in the row header. A card can be split across non-adjacent days and skips leave and holidays; on a half day it skips only the half that is off (a morning off blocks the first half of the day, an afternoon off the second half). Load still counts MD, not days. Cards that run past the sprint end show in an After sprint end zone at the right of the calendar.
 - FR-24: A verdict banner shows **Feasible**, **At risk** or **Not feasible**, with load vs net capacity per role (see rules below).
 - FR-25: **Save plan** stores the plan as a JSON attachment on the planning page. It is the single save for Tabs 1-4 and sits in the same place in every tab's header: one click saves the Tab 1 dropdown choices (FR-32), Tab 2 resources, leave and one-off holidays, and the Tab 4 card placements together. Leaving the page with unsaved changes asks for confirmation. Config keeps its own Save config (FR-8). Nothing is written back to Jira; reassignments made in the calendar live only in the plan.
 - FR-26: Once the sprint becomes active in Jira, the plan turns read-only and stays on the page as the commitment record.
@@ -267,6 +267,7 @@ All six screens are in the [screens folder](screens/), built with the sample Spr
 | Project key typed wrong, or the user lacks Browse Projects on it | Fetch from Jira says the key was not found or not browsable (Jira gives the same answer for both); board, Team, issue types and sprints stay empty |
 | Project key edited after a fetch | Board, Team, issue types and sprints are marked stale; Save config is blocked until Fetch from Jira runs again |
 | Parent page "Sprint plans - \<Squad>" was renamed or moved | Publish finds it by its stored page ID, not its title; if it was deleted, Publish asks before creating a new parent |
+| Plan saved before v0.7 holds a half day of leave | It loads as a Morning; leave totals and capacity do not change |
 | Contributor or Backup Assignee holds two or more people | Planned on the first name listed by default; the SM can pick another listed person from a dropdown in Tab 1 (FR-32) |
 
 ## Technical Considerations
@@ -392,7 +393,7 @@ Added in v0.4:
 
 | Requirement | How it is verified | Who verifies |
 | --- | --- | --- |
-| FR-30 | Clicking a day cycles free, full, half, free; a holiday day cannot be clicked; leave total and net MD update; 2 days' leave at 80% with 15% ceremonies shows 8.8 MD | QA |
+| FR-30 | Clicking a day cycles free, Full day, Morning, Afternoon, free; a holiday day cannot be clicked; leave total and net MD update; 2 days' leave at 80% with 15% ceremonies shows 8.8 MD; a morning and an afternoon off each count 0.5 day; in Tab 4 a card runs through the morning of an afternoon off and stops at midday | QA |
 | FR-31 | Pongal appears once for Chennai only, sourced from the location calendar; a one-off holiday shows as One-off and reduces only the chosen locations | QA |
 | FR-19 (read-only) | Tab 3 has no editable field; its edit link opens Tab 2 | QA |
 | FR-32 | A ticket with Contributor A and B is planned on A by default; picking B in the dropdown moves the Dev card to B and survives Reload; removing B from the field in Jira returns the ticket to A and Reload lists it; dragging the card to C in Tab 4 overrides the dropdown and Tab 1 shows C, moved in calendar | Automated |
@@ -443,7 +444,7 @@ The platform is settled, so Gate 1 is now about data: the Team field mapped and 
 
 ## Open Questions
 
-No questions open at v0.6. New ones from the pilot SM or the Confluence admin go here.
+No questions open at v0.7. New ones from the pilot SM or the Confluence admin go here.
 
 ### Resolved on 19 Nov 2026
 
@@ -468,6 +469,7 @@ No questions open at v0.6. New ones from the pilot SM or the Confluence admin go
 | Jira link ID (19 Nov 2026, v0.6) | Not stored or typed: found from Confluence's list of linked Jira servers, as in the Release Impact admin tool |
 | Where resources, leave and holidays are edited | New Tab 2 Resources & Leave between Sprint Tickets and Capacity; yearly location calendars stay in Config; Capacity becomes read-only |
 | Ticket with a Dev but no BA (or the reverse) | Follow the Edge Cases table: the named half is planned with its MD, the missing half goes to Unassigned; only a ticket with no SP is 0 MD |
+| Half-day leave (20 Nov 2026, v0.7) | A half day is the morning or the afternoon, chosen in the leave grid; both count 0.5 day, and Tab 4 blocks only the half that is off. "Afternoon" rather than "evening": it is the second half of the working day |
 | Card length on the calendar | Days the work takes at the person's net daily rate, not MD, so overload shows as cards running past the sprint end; cards are exact, only each row's finish is rounded up to half a day |
 
 ## Appendix
@@ -495,6 +497,7 @@ No questions open at v0.6. New ones from the pilot SM or the Confluence admin go
 
 | Version | Date | Author | Changes |
 | --- | --- | --- | --- |
+| 0.7 | 2026-11-20 | Shripathi Raman Radhakrishnan | Half-day leave is the morning or the afternoon: FR-18; FR-30 click cycle free, Full day, Morning, Afternoon, free with those labels on the grid; FR-23 cards skip only the half that is off; FR-30 verification row; edge case for plans saved before v0.7; Resolved decision |
 | 0.6 | 2026-11-19 | Shripathi Raman Radhakrishnan | Config: project key typed in a text field with a Fetch from Jira button (FR-2), which also does the project permission check; Test connection checks the link and the user only (FR-1); Jira link found from Confluence's linked servers, no link ID (FR-1, Constraints, Integration Points); Integration Points add the linked-server lookup, proxy route, Team values and single-sprint calls; two edge cases for a wrong or edited key; Config screen updated. 2026-11-20: Jira host name dropped from FR-1, Constraints and Integration Points (the server comes from the application link) |
 | 0.5 | 2026-11-19 | Shripathi Raman Radhakrishnan | Screen designs added as images and links under Config, each tab and Access and publishing; User Experience lists all six screens; design canvas wins over Bloompeak for look |
 | 0.4 | 2026-11-19 | Shripathi Raman Radhakrishnan | New Tab 2 Resources & Leave (FR-15, FR-17, FR-18 moved there; FR-30, FR-31 added); Capacity is Tab 3 and read-only; Planning Calendar is Tab 4; design canvas linked; FR-13 aligned with Edge Cases (missing Dev or BA keeps the other half's MD); FR-23 cards drawn in exact days at each person's net rate, rounded only at each row's finish; FR-22 dropped cards snap their start to the nearest half day and push later cards right; FR-32 multi-person Contributor or Backup Assignee: SM picks from a dropdown, default first listed, a calendar drag wins; one Save plan for Tabs 1-4; File Structure added (separate HTML, CSS, JS, JSON attachments; viewer files on the parent page) |

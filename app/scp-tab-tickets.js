@@ -171,6 +171,7 @@
       var sprint = toSprint(r[0]);
       var fresh = r[1].map(function (i) { return SCP.jira.toTicket(i, cfg()); });
       var changes = tab.diff(p, sprint, fresh);
+      var oldSprint = p.sprint;
       // Keep the SM's dropdown choices while the person is still listed (FR-32).
       var old = {};
       p.tickets.forEach(function (t) { old[t.key] = t; });
@@ -191,7 +192,7 @@
       p.sprint = sprint;
       // People new on the tickets join Tab 2, tagged when outside the team (US-12 AC-2).
       if (SCP.tabs.resources) { SCP.tabs.resources.sync(p, null); }
-      if (SCP.tabs.calendar && SCP.tabs.calendar.afterReload) { SCP.tabs.calendar.afterReload(); }
+      if (SCP.tabs.calendar && SCP.tabs.calendar.afterReload) { SCP.tabs.calendar.afterReload(p, oldSprint); }
       view.busy = false;
       SCP.app.markDirty();
       SCP.app.render();

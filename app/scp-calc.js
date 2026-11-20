@@ -330,11 +330,28 @@
     return out;
   };
 
-  /** Leave value of one day: 1 = full day, 0.5 = half day, 0 = working (FR-18). */
-  calc.leaveOn = function (plan, resourceId, date) {
+  /**
+   * Leave of one person on one day (FR-18, FR-30): 'full', 'am' (morning off),
+   * 'pm' (afternoon off) or null. Stored as 1, 'am' or 'pm'; a half day saved
+   * before PRD v0.7 holds 0.5 and counts as a morning.
+   */
+  calc.leaveKind = function (plan, resourceId, date) {
     var l = plan && plan.leave && plan.leave[resourceId];
-    return l && l[date] ? l[date] : 0;
+    var v = l ? l[date] : null;
+    if (v === 1) { return 'full'; }
+    if (v === 'am' || v === 0.5) { return 'am'; }
+    if (v === 'pm') { return 'pm'; }
+    return null;
   };
+
+  /** Days of leave on one day: 1, 0.5 for either half, or 0. */
+  calc.leaveOn = function (plan, resourceId, date) {
+    var k = calc.leaveKind(plan, resourceId, date);
+    return k === 'full' ? 1 : (k ? 0.5 : 0);
+  };
+
+  /** Label of a leave day, as the grid, Tab 3 and Tab 4 show it. */
+  calc.LEAVE_LABEL = { full: 'Full day', am: 'Morning', pm: 'Afternoon' };
 
   /**
    * Net capacity of one resource (FR-19):
@@ -396,7 +413,7 @@
 
   /**
    * Leave of one person as short text: consecutive full days as a range,
-   * half days marked, e.g. "Thu 7 – Fri 8 Jan · Thu 21 Jan (½ day)". '' if none.
+   * each marked Full day, Morning or Afternoon, e.g. "Thu 7 – Fri 8 Jan (Full day) · Thu 21 Jan (Morning)". '' if none.
    * Leave on an office holiday is ignored (it is not counted either).
    */
   calc.leaveText = function (plan, resourceId, days, holidayDates) {
@@ -405,23 +422,23 @@
     function close() {
       if (!run) { return; }
       if (run.from === run.to) {
-        parts.push(calc.fmtDay(run.from));
+        parts.push(calc.fmtDay(run.from) + ' (Full day)');
       } else {
         var a = new Date(calc.isoToMs(run.from));
         var b = new Date(calc.isoToMs(run.to));
         var left = calc.WEEKDAY_SHORT[a.getUTCDay()] + ' ' + a.getUTCDate() +
           (a.getUTCMonth() !== b.getUTCMonth() ? ' ' + calc.MONTH_SHORT[a.getUTCMonth()] : '');
-        parts.push(left + ' – ' + calc.fmtDay(run.to));
+        parts.push(left + ' – ' + calc.fmtDay(run.to) + ' (Full day)');
       }
       run = null;
     }
     days.forEach(function (d) {
-      var v = (holidayDates || []).indexOf(d) === -1 ? calc.leaveOn(plan, resourceId, d) : 0;
-      if (v === 1) {
+      var k = (holidayDates || []).indexOf(d) === -1 ? calc.leaveKind(plan, resourceId, d) : null;
+      if (k === 'full') {
         if (run) { run.to = d; } else { run = { from: d, to: d }; }
       } else {
         close();                                   // a free day, holiday or half day ends a run
-        if (v === 0.5) { parts.push(calc.fmtDay(d) + ' (½ day)'); }
+        if (k) { parts.push(calc.fmtDay(d) + ' (' + calc.LEAVE_LABEL[k] + ')'); }
       }
     });
     close();
@@ -437,7 +454,12 @@
    */
   calc.capacitySummary = function (plan, config) {
     var days = calc.sprintDays(plan, config);
-    var load = calc.plannedLoad(plan.tickets, config);
+    // Planned MD per person follows the calendar: Tab 1 picks, then any calendar move (FR-22).
+    var load = { byPerson: {}, unassigned: 0, total: 0 };
+    calc.calendarCards(plan, config).forEach(function (k) {
+      if (k.person) { load.byPerson[k.person] = (load.byPerson[k.person] || 0) + k.md; } else { load.unassigned += k.md; }
+      load.total += k.md;
+    });
     var t = { days: days.length, people: 0, gross: 0, holidays: 0, leave: 0, available: 0,
       afterCeremonies: 0, ceremonies: 0, availabilityLoss: 0, net: 0, dev: 0, ba: 0,
       planned: load.total, unassigned: load.unassigned };
@@ -463,6 +485,258 @@
     t.availabilityLoss = t.afterCeremonies - t.net;
     t.plannedPct = t.net ? t.planned / t.net * 100 : null;
     return { rows: rows, totals: t };
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Tab 4 · Planning Calendar (FR-20 to FR-24)                          */
+  /*                                                                     */
+  /* Time is measured in working days from the sprint start: day 0 is    */
+  /* the first working day, day W the first working day after the end.   */
+  /* A card is drawn in days at its person's net rate (FR-23):           */
+  /* days = MD / ((1 - ceremony %) x availability %).                    */
+  /* ------------------------------------------------------------------ */
+
+  var EPS = 1e-9;
+  calc.UNASSIGNED_GAP = 0.2;      // space between cards in the Unassigned lane, in days
+  calc.EMPTY_CARD_DAYS = 2;       // drawn width of a 0 MD card (no SP or SP outside bands)
+  calc.MIN_AFTER_DAYS = 4;        // working days always shown in the After sprint end zone
+
+  /** Nearest half day, never before day 0 (FR-22). */
+  calc.snapHalf = function (x) {
+    return Math.max(0, Math.round(x * 2 + EPS) / 2);
+  };
+
+  /** Row finish rounded up to the next half day (FR-23). */
+  calc.ceilHalf = function (x) {
+    return Math.ceil(x * 2 - EPS) / 2;
+  };
+
+  /**
+   * Every card of the plan. A ticket with MD gives a Dev card on its Contributor
+   * and a BA card on its Backup Assignee (FR-21); a ticket with 0 MD (no SP or SP
+   * outside the bands) gives one grey card in Unassigned (FR-13). A calendar move
+   * in plan.cards ({ key, role, person, start }) wins over the Tab 1 pick (FR-32).
+   * A person who is not a resource of the plan counts as Unassigned.
+   */
+  calc.calendarCards = function (plan, config) {
+    var ids = {};
+    (plan.resources || []).forEach(function (r) { ids[r.id] = true; });
+    var moves = {};
+    (Array.isArray(plan.cards) ? plan.cards : []).forEach(function (c) { moves[c.key + '|' + c.role] = c; });
+    var out = [];
+    (plan.tickets || []).forEach(function (t, order) {
+      var m = calc.ticketMd(t, config);
+      if (!m.total) {
+        out.push({ id: t.key + '|none', key: t.key, role: 'none', md: 0, person: null, start: null, moved: false,
+          order: order, flags: m.flags, ticket: t });
+        return;
+      }
+      [['dev', m.dev, m.devPerson], ['ba', m.ba, m.baPerson]].forEach(function (x) {
+        if (!x[1]) { return; }
+        var mv = moves[t.key + '|' + x[0]];
+        var person = mv ? mv.person : x[2];
+        out.push({ id: t.key + '|' + x[0], key: t.key, role: x[0], md: x[1],
+          person: person && ids[person] ? person : null,
+          start: mv && isNum(mv.start) ? mv.start : null,
+          moved: !!mv, order: order, flags: m.flags, ticket: t });
+      });
+    });
+    return out;
+  };
+
+  /**
+   * Days a person cannot work, as intervals in sprint days: office holidays
+   * (full day) and leave (full day, or the morning or afternoon half).
+   */
+  calc.absences = function (resource, config, plan, days) {
+    var out = [];
+    var hols = calc.sprintHolidays(resource.location, config, plan);
+    days.forEach(function (d, i) {
+      var h = hols.filter(function (x) { return x.date === d; })[0];
+      if (h) { out.push({ s: i, e: i + 1, kind: 'hol', label: h.name }); return; }
+      var k = calc.leaveKind(plan, resource.id, d);
+      if (k) {
+        // A morning off blocks the first half of the day, an afternoon off the second (FR-23).
+        out.push({ s: k === 'pm' ? i + 0.5 : i, e: k === 'am' ? i + 0.5 : i + 1, kind: 'leave', half: k !== 'full', label: calc.LEAVE_LABEL[k] });
+      }
+    });
+    return out;
+  };
+
+  /**
+   * Lay one card from `start`: it uses free time at `rate` MD a day and skips
+   * absences, so it may split into parts (FR-23, US-16 AC-3). With no rate
+   * (0% available, or no ceremony %) the card is drawn at 1 MD a day where it
+   * starts and marked onAbsence: there is no time it can use.
+   */
+  calc.flowCard = function (start, md, rate, absences) {
+    if (!(rate > EPS)) {
+      return { parts: [{ s: start, e: start + Math.max(md, EPS), md: md }], end: start + md, onAbsence: true };
+    }
+    var t = start;
+    var left = md;
+    var parts = [];
+    var guard = 0;
+    while (left > EPS && guard++ < 1000) {
+      var inside = absences.filter(function (a) { return a.s <= t + EPS && a.e > t + EPS; })[0];
+      if (inside) { t = inside.e; continue; }
+      var next = absences.filter(function (a) { return a.s > t + EPS; }).sort(function (a, b) { return a.s - b.s; })[0];
+      var limit = next ? next.s : Infinity;
+      var room = (limit - t) * rate;
+      if (room + EPS >= left) {
+        parts.push({ s: t, e: t + left / rate, md: left });
+        t += left / rate;
+        left = 0;
+      } else {
+        parts.push({ s: t, e: limit, md: room });
+        left -= room;
+        t = limit;
+      }
+    }
+    // Shown MD per part add up to the card's MD: the last part takes the remainder.
+    var shown = 0;
+    parts.forEach(function (p, i) {
+      p.shownMd = i === parts.length - 1 ? calc.round1(md - shown) : calc.round1(p.md);
+      shown += p.shownMd;
+    });
+    return { parts: parts, end: t, onAbsence: false };
+  };
+
+  /**
+   * Lay out one person's row (FR-21, FR-22). Cards moved in the calendar keep
+   * their snapped start; auto-placed cards stay packed in ticket order and fill
+   * the time before a moved card only when they fit there whole. Any card that
+   * would overlap the one before it moves right, so no two cards overlap.
+   */
+  calc.layoutRow = function (cards, rate, absences) {
+    var autos = cards.filter(function (c) { return c.start === null; }).sort(function (a, b) { return a.order - b.order; });
+    var fixed = cards.filter(function (c) { return c.start !== null; }).sort(function (a, b) { return a.start - b.start || a.order - b.order; });
+    var placed = [];
+    var cursor = 0;
+    function put(c, at) {
+      var f = calc.flowCard(at, c.md, rate, absences);
+      placed.push(Object.assign({}, c, { parts: f.parts, s: f.parts[0].s, e: f.end, onAbsence: f.onAbsence }));
+      cursor = Math.max(cursor, f.end);
+    }
+    while (autos.length || fixed.length) {
+      if (fixed.length && (!autos.length || calc.flowCard(cursor, autos[0].md, rate, absences).end > fixed[0].start + EPS)) {
+        var c = fixed.shift();
+        put(c, Math.max(c.start, cursor));
+      } else {
+        put(autos.shift(), cursor);
+      }
+    }
+    return { cards: placed, end: cursor };
+  };
+
+  /** Unassigned lane: cards side by side in ticket order, 1 MD a day, 0 MD cards at a fixed width. */
+  calc.layoutUnassigned = function (cards) {
+    var x = 0;
+    return cards.slice().sort(function (a, b) { return a.order - b.order || (a.role === 'dev' ? -1 : 1); }).map(function (c) {
+      var w = c.md > 0 ? c.md : calc.EMPTY_CARD_DAYS;
+      var out = Object.assign({}, c, { parts: [{ s: x, e: x + w, md: c.md, shownMd: c.md }], s: x, e: x + w, onAbsence: false });
+      x += w + calc.UNASSIGNED_GAP;
+      return out;
+    });
+  };
+
+  /**
+   * The whole calendar (FR-20 to FR-24): rows with placed cards, load, net and
+   * finish; the Unassigned lane; load and net per role; the verdict; and the
+   * dates of every column, sprint days first, then the After sprint end zone.
+   */
+  calc.planCalendar = function (plan, config) {
+    var days = calc.sprintDays(plan, config);
+    var W = days.length;
+    var cap = calc.capacitySummary(plan, config);
+    var cards = calc.calendarCards(plan, config);
+    var rows = cap.rows.map(function (c) {
+      var r = c.resource;
+      var abs = calc.absences(r, config, plan, days);
+      var mine = cards.filter(function (k) { return k.person === r.id; });
+      var lay = calc.layoutRow(mine, c.rate, abs);
+      var load = mine.reduce(function (s, k) { return s + k.md; }, 0);
+      var net = c.net || 0;
+      var done = lay.cards.length ? calc.ceilHalf(lay.end) : null;
+      return {
+        resource: r, capacity: c, rate: c.rate, absences: abs, cards: lay.cards, end: lay.end,
+        load: load, net: net, pct: net > EPS ? load / net * 100 : (load > EPS ? Infinity : 0),
+        done: done, doneIndex: done === null ? null : Math.ceil(done - EPS) - 1,
+        onAbsence: lay.cards.some(function (k) { return k.onAbsence; })
+      };
+    });
+    var un = calc.layoutUnassigned(cards.filter(function (k) { return k.person === null; }));
+    var roles = { dev: { load: 0, net: cap.totals.dev }, ba: { load: 0, net: cap.totals.ba } };
+    cards.forEach(function (k) { if (roles[k.role]) { roles[k.role].load += k.md; } });
+
+    var maxEnd = rows.reduce(function (m, r) { return Math.max(m, r.end); }, 0);
+    un.forEach(function (k) { maxEnd = Math.max(maxEnd, k.e); });
+    var after = Math.max(calc.MIN_AFTER_DAYS, Math.ceil(maxEnd - EPS) - W);
+    var dates = days.slice();
+    var d = days.length ? days[days.length - 1] : plan.sprint.end;
+    while (dates.length < W + after) {
+      d = calc.addDays(d, 1);
+      if (calc.isWorkingDay(d, config.workingWeek)) { dates.push(d); }
+    }
+
+    var cal = {
+      W: W, dates: dates, rows: rows, unassigned: un, roles: roles, capacity: cap,
+      planned: cards.reduce(function (s, k) { return s + k.md; }, 0),
+      flagged: (plan.tickets || []).map(function (t) { return { key: t.key, flags: calc.ticketMd(t, config).flags }; })
+        .filter(function (x) { return x.flags.length; })
+    };
+    cal.verdict = calc.verdict(cal);
+    return cal;
+  };
+
+  /**
+   * Verdict (FR-24, Calculation Rules): Not feasible when a role's load is above
+   * its net; At risk when the roles fit but a person is above 100% or a card
+   * sits where its person has no time; Feasible otherwise.
+   */
+  calc.verdict = function (cal) {
+    var gaps = ['dev', 'ba'].map(function (k) {
+      return { role: k, load: cal.roles[k].load, net: cal.roles[k].net, gap: cal.roles[k].load - cal.roles[k].net };
+    }).filter(function (g) { return g.gap > EPS; }).sort(function (a, b) { return b.gap - a.gap; });
+    var over = cal.rows.filter(function (r) { return r.load > EPS && r.pct > 100 + EPS; })
+      .sort(function (a, b) { return b.pct - a.pct; });
+    var onAbsence = cal.rows.filter(function (r) { return r.onAbsence; });
+    var status = gaps.length ? 'notFeasible' : (over.length || onAbsence.length ? 'atRisk' : 'feasible');
+    return { status: status, gaps: gaps, over: over, onAbsence: onAbsence };
+  };
+
+  /**
+   * Overload detail (US-19): for each overloaded person, the cards on their row
+   * that run past the sprint end; for each overloaded role, that role's cards
+   * past the sprint end or unassigned. Largest first, then latest finish.
+   */
+  calc.overloadDetail = function (cal) {
+    function sort(list) {
+      return list.sort(function (a, b) { return b.md - a.md || b.e - a.e; });
+    }
+    var out = [];
+    cal.verdict.over.forEach(function (r) {
+      out.push({ kind: 'person', id: r.resource.id, name: r.resource.name, pct: r.pct, load: r.load, net: r.net,
+        cards: sort(r.cards.filter(function (k) { return k.e > cal.W + EPS; })) });
+    });
+    cal.verdict.gaps.forEach(function (g) {
+      var list = [];
+      cal.rows.forEach(function (r) {
+        r.cards.forEach(function (k) { if (k.role === g.role && k.e > cal.W + EPS) { list.push(Object.assign({ who: r.resource.name }, k)); } });
+      });
+      cal.unassigned.forEach(function (k) { if (k.role === g.role) { list.push(Object.assign({ who: 'Unassigned' }, k)); } });
+      out.push({ kind: 'role', id: g.role, name: g.role === 'dev' ? 'Dev' : 'BA', gap: g.gap, load: g.load, net: g.net, cards: sort(list) });
+    });
+    return out;
+  };
+
+  /** The calendar as it would be without one ticket (US-19 AC-2). */
+  calc.planWithout = function (plan, config, key) {
+    var p = Object.assign({}, plan, {
+      tickets: (plan.tickets || []).filter(function (t) { return t.key !== key; }),
+      cards: (Array.isArray(plan.cards) ? plan.cards : []).filter(function (c) { return c.key !== key; })
+    });
+    return calc.planCalendar(p, config);
   };
 
   /* Node export for the automated tests. */

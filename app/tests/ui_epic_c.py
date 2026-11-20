@@ -189,17 +189,22 @@ def _(app):
 
 # ---------------------------------------------------------------- US-13
 
-@test("US-13 AC-1 Clicking a working day cycles free, full day, half day, free")
+@test("US-13 AC-1 Clicking a working day cycles free, Full day, Morning, Afternoon, free, with those labels")
 def _(app):
     start(app)
     c = cell(app, "lorenzo", "2027-01-04")
     states = []
-    for _ in range(3):
+    texts = []
+    for _ in range(4):
         c.click()
         app.settle()
         c = cell(app, "lorenzo", "2027-01-04")
         states.append(c.get_attribute("aria-label").split(": ")[1])
-    check(states == ["full day leave", "half day leave", "working"], states)
+        texts.append(c.inner_text())
+    check(states == ["Full day", "Morning", "Afternoon", "working"], states)
+    check(texts == ["Full day", "Morning", "Afternoon", ""], texts)
+    legend = app.text("[data-test=leave] .scp-legend")
+    check(all(w in legend for w in ["Full day", "Morning", "Afternoon", "Office holiday"]), legend)
     check(app.state("S.plan.leave.lorenzo || {}") == {}, "nothing stored when free")
 
 
@@ -235,7 +240,7 @@ def _(app):
     check(app.page.evaluate("() => document.activeElement.dataset.focus") == "leave-gabriela-2027-01-19", "focus kept")
     app.page.keyboard.press("Enter")
     app.settle()
-    check(app.state("S.plan.leave.gabriela") == {"2027-01-19": 0.5}, "half day")
+    check(app.state("S.plan.leave.gabriela") == {"2027-01-19": "am"}, "morning")
     app.page.keyboard.press("Tab")
     check(app.page.evaluate("() => document.activeElement.dataset.focus") == "leave-gabriela-2027-01-20", "Tab moves to the next day")
 

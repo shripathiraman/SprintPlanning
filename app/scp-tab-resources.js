@@ -194,12 +194,12 @@
           return '<button type="button" class="scp-leave is-hol" disabled title="' + ui.esc(r.name + ', ' + when + ': office holiday (' + hols[d] + ')') +
             '" aria-label="' + ui.esc(r.name + ', ' + when + ': office holiday') + '">HOL</button>';
         }
-        var v = calc.leaveOn(p, r.id, d);
-        total += v;
-        var state = v === 1 ? 'full day leave' : (v === 0.5 ? 'half day leave' : 'working');
-        return '<button type="button" class="scp-leave' + (v === 1 ? ' is-full' : (v === 0.5 ? ' is-half' : '')) + '" data-act="leave" data-id="' + ui.esc(r.id) +
-          '" data-date="' + d + '" data-focus="leave-' + ui.esc(r.id) + '-' + d + '" aria-label="' + ui.esc(r.name + ', ' + when + ': ' + state) + '">' +
-          (v === 1 ? 'Leave' : (v === 0.5 ? '½' : '')) + '</button>';
+        var k = calc.leaveKind(p, r.id, d);
+        total += calc.leaveOn(p, r.id, d);
+        var label = k ? calc.LEAVE_LABEL[k] : '';
+        return '<button type="button" class="scp-leave' + (k ? ' is-' + k : '') + '" data-act="leave" data-id="' + ui.esc(r.id) +
+          '" data-date="' + d + '" data-focus="leave-' + ui.esc(r.id) + '-' + d + '" aria-label="' + ui.esc(r.name + ', ' + when + ': ' + (label || 'working')) + '">' +
+          label + '</button>';
       }).join('');
       return '<div class="scp-grid__row" data-test="leave-row" data-id="' + ui.esc(r.id) + '">' +
         '<span class="scp-grid__name">' + ui.esc(r.name) + (r.location ? ' <span class="scp-muted">· ' + ui.esc(locationName(r.location)) + '</span>' : '') + '</span>' +
@@ -207,8 +207,8 @@
     }).join('');
     var cols = 'grid-template-columns: 170px repeat(' + days.length + ', minmax(36px, 1fr)) 80px';
     return '<section class="scp-card" data-test="leave">' +
-      '<div class="scp-card__head"><div><h2>Leave</h2><div class="scp-muted">Click a day: free → full day → half day → free. Office holidays are locked.</div></div>' +
-      '<div class="scp-legend"><span><i class="scp-sw scp-sw--full"></i>Full day</span><span><i class="scp-sw scp-sw--half"></i>Half day</span><span><i class="scp-sw scp-sw--hol"></i>Office holiday</span></div></div>' +
+      '<div class="scp-card__head"><div><h2>Leave</h2><div class="scp-muted">Click a day: free → Full day → Morning → Afternoon → free. Office holidays are locked.</div></div>' +
+      '<div class="scp-legend"><span><i class="scp-sw scp-sw--full"></i>Full day</span><span><i class="scp-sw scp-sw--am"></i>Morning</span><span><i class="scp-sw scp-sw--pm"></i>Afternoon</span><span><i class="scp-sw scp-sw--hol"></i>Office holiday</span></div></div>' +
       '<div class="scp-scroll"><div class="scp-grid">' +
       '<div class="scp-grid__row scp-grid__head" style="' + cols + '"><span></span>' + head + '<span class="num">Leave days</span></div>' +
       rows.replace(/class="scp-grid__row" data-test="leave-row"/g, 'class="scp-grid__row" style="' + cols + '" data-test="leave-row"') +
@@ -293,12 +293,12 @@
     changed();
   }
 
-  /** Free -> full day -> half day -> free (FR-30, US-13 AC-1). */
+  /** Free -> Full day -> Morning -> Afternoon -> free (FR-30, US-13 AC-1). */
+  var NEXT_LEAVE = { none: 1, full: 'am', am: 'pm', pm: null };
   function cycleLeave(id, date) {
     var p = plan();
     var l = p.leave[id] || (p.leave[id] = {});
-    var v = l[date] || 0;
-    var next = v === 0 ? 1 : (v === 1 ? 0.5 : 0);
+    var next = NEXT_LEAVE[calc.leaveKind(p, id, date) || 'none'];
     if (next) { l[date] = next; } else { delete l[date]; }
     changed();
   }

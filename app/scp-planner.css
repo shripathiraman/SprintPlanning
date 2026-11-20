@@ -291,7 +291,8 @@
 .scp-legend span { display: inline-flex; gap: 6px; align-items: center; }
 .scp-sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
 .scp-sw--full { background: #5a6474; }
-.scp-sw--half { background: linear-gradient(90deg, #5a6474 50%, #eef0f3 50%); }
+.scp-sw--am { background: linear-gradient(90deg, #c3c9d3 50%, #f6f7f9 50%); border: 1px solid #5a6474; box-sizing: border-box; }
+.scp-sw--pm { background: linear-gradient(90deg, #f6f7f9 50%, #c3c9d3 50%); border: 1px solid #5a6474; box-sizing: border-box; }
 .scp-sw--hol { background: var(--scp-hol-bg); }
 .scp-scroll { overflow-x: auto; }
 .scp-grid { min-width: 900px; display: flex; flex-direction: column; gap: 4px; }
@@ -306,7 +307,8 @@
 }
 .scp-leave:hover:not(:disabled) { border-color: #5a6474; }
 .scp-leave.is-full { background: #5a6474; border-color: #5a6474; color: #fff; }
-.scp-leave.is-half { background: linear-gradient(90deg, #5a6474 50%, #eef0f3 50%); border-color: #5a6474; }
+.scp-leave.is-am { background: linear-gradient(90deg, #c3c9d3 50%, #f6f7f9 50%); border-color: #5a6474; color: var(--scp-text); font-weight: 600; }
+.scp-leave.is-pm { background: linear-gradient(90deg, #f6f7f9 50%, #c3c9d3 50%); border-color: #5a6474; color: var(--scp-text); font-weight: 600; }
 .scp-leave.is-hol { background: var(--scp-hol-bg); border-color: #d4ccee; color: var(--scp-hol); cursor: not-allowed; }
 .scp-oneoff { margin-top: 14px; background: var(--scp-bg); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .scp-oneoff .scp-inline { align-items: flex-end; gap: 12px; }
@@ -334,3 +336,94 @@
 .scp-rolecard__value { font-weight: 700; font-size: 18px; }
 @media (max-width: 1100px) { .scp-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .scp-captable tbody th { border-bottom-color: #eef0f3; }
+
+/* ---------------- Tab 4 · Planning Calendar (US-16 to US-19) ---------------- */
+.scp-verdict { border-radius: 12px; padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; border: 1px solid; }
+.scp-verdict--warn { background: #fff4db; border-color: #f0d39a; color: #5c3a00; }
+.scp-verdict--bad { background: #fdecea; border-color: #f3b8b1; color: #7a1a12; }
+.scp-verdict--ok { background: #e6f4ec; border-color: #a9d8bd; color: #14532d; }
+.scp-verdict__main { display: flex; gap: 12px; align-items: center; flex: 1 1 420px; }
+.scp-verdict__icon { width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center; flex: none; }
+.scp-verdict--warn .scp-verdict__icon { background: #f5c25b; }
+.scp-verdict--bad .scp-verdict__icon { background: #f19d93; }
+.scp-verdict--ok .scp-verdict__icon { background: #8fd0aa; }
+.scp-verdict__title { font-weight: 700; font-size: 16px; }
+.scp-verdict__detail { font-size: 13px; opacity: 0.92; margin-top: 2px; }
+.scp-verdict__figs { display: flex; gap: 24px; flex-wrap: wrap; }
+.scp-verdict__fig { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.scp-verdict__fig b { font-size: 18px; color: var(--scp-text); }
+.scp-progress { display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: center; }
+.scp-progress__bar-wrap { flex: 1 1 520px; display: flex; flex-direction: column; gap: 8px; }
+.scp-progress__text { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 13px; }
+.scp-progress__bar { height: 10px; background: #edf0f4; border-radius: 5px; overflow: hidden; display: flex; }
+.scp-progress__dev { background: #2f5bd3; }
+.scp-progress__ba { background: #d9772b; }
+.scp-legend--cal { font-size: 12px; color: var(--scp-muted); gap: 16px; flex-wrap: wrap; }
+.scp-legend--cal span { display: inline-flex; gap: 6px; align-items: center; }
+.scp-sw--dev { background: #dce6fb; border: 1px solid #9db4ee; }
+.scp-sw--ba { background: #fce3cc; border: 1px solid #edb98a; }
+.scp-sw--leave { background: repeating-linear-gradient(135deg, #e3e7ee 0 4px, #f6f7f9 4px 8px); }
+
+.scp-cal { min-width: 1180px; }
+.scp-cal__row { display: flex; border-bottom: 1px solid #edf0f4; }
+.scp-cal__name { width: 240px; flex: none; box-sizing: border-box; padding: 10px 16px; display: flex; align-items: center; gap: 10px; border-right: 1px solid #edf0f4; }
+.scp-cal__name--head { flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 2px; font-size: 12px; color: var(--scp-muted); border-right: 0; padding: 12px 16px; }
+.scp-cal__name--head b { color: var(--scp-text); }
+.scp-cal__name--marks { font-size: 11px; color: var(--scp-muted); padding: 6px 16px; border-right: 0; }
+.scp-cal__head { border-bottom-color: var(--scp-line); }
+.scp-cal__days { flex: 1; min-width: 0; }
+.scp-cal__weeks, .scp-cal__daygrid, .scp-cal__markgrid { display: grid; }
+.scp-cal__weeks { border-bottom: 1px solid #edf0f4; }
+.scp-cal__week { padding: 8px 10px; font-size: 12px; font-weight: 600; color: var(--scp-muted); border-left: 1px solid #edf0f4; white-space: nowrap; overflow: hidden; }
+.scp-cal__week--after { color: #a3201a; background: #fdf1f0; border-left: 2px solid #a3201a; }
+.scp-cal__day { padding: 6px 0; text-align: center; border-left: 1px solid #edf0f4; display: flex; flex-direction: column; gap: 1px; font-size: 11px; }
+.scp-cal__day b { font-size: 13px; }
+.scp-cal__day.is-after { background: #fdf1f0; color: #a3201a; }
+.scp-cal__marks { background: #fafbfc; }
+.scp-cal__markgrid { flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600; }
+.scp-chip-dark { justify-self: start; margin-left: 4px; background: #16202e; color: #fff; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.scp-chip-dark--end { justify-self: end; margin: 0 4px 0 0; }
+.scp-cal__who { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; font-size: 13px; }
+.scp-cal__who span { font-size: 11px; color: var(--scp-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scp-avatar { width: 32px; height: 32px; border-radius: 16px; background: #edf0f4; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none; }
+.scp-avatar--dev { background: #dce6fb; }
+.scp-avatar--ba { background: #fce3cc; }
+.scp-cal__name .scp-badge { font-size: 12px; font-weight: 700; padding: 2px 8px; white-space: nowrap; }
+.scp-cal__who .scp-cal__top { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 13px; color: var(--scp-text); overflow: visible; }
+.scp-cal__who .scp-cal__top span { color: inherit; font-size: 12px; }
+.scp-lane { flex: 1; min-width: 0; display: grid; grid-template-rows: 52px; padding: 8px 0; position: relative; background: #fff; }
+.scp-lane--un { background: #fafbfc; }
+.scp-lane.is-empty { background: repeating-linear-gradient(135deg, #f6f7f9 0 6px, #fff 6px 12px); }
+.scp-lane.is-drop { outline: 2px dashed var(--scp-primary); outline-offset: -2px; }
+.scp-shade { grid-row: 1; margin: -8px 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px; font-size: 10px; line-height: 1.15; text-align: center; color: #4a3f6b; font-weight: 600; overflow: hidden; }
+.scp-shade--hol { background: #e7e2f6; }
+.scp-shade--leave { background: repeating-linear-gradient(135deg, #e3e7ee 0 4px, #f6f7f9 4px 8px); }
+.scp-shade--after { background: #fdf1f0; }
+.scp-ccard {
+  grid-row: 1; margin: 0 2px; border-radius: 8px; border: 1px solid; text-align: left; padding: 6px 8px; font: inherit;
+  overflow: hidden; display: flex; flex-direction: column; gap: 2px; justify-content: center; cursor: grab; min-width: 0;
+  position: relative; z-index: 1; touch-action: none;
+}
+.scp-ccard--dev { background: #dce6fb; border-color: #9db4ee; color: #1d3f91; }
+.scp-ccard--ba { background: #fce3cc; border-color: #edb98a; color: #7a3e0a; }
+.scp-ccard--none { background: #f1f3f6; border-color: #c9d0db; color: var(--scp-muted); cursor: default; }
+.scp-ccard.is-selected { border-color: #16202e; box-shadow: 0 0 0 2px #16202e; }
+.scp-ccard.is-onabsence { outline: 2px solid var(--scp-bad); }
+.scp-ccard.is-dragging { opacity: 0.55; cursor: grabbing; }
+.scp-ccard:focus-visible { outline: 3px solid var(--scp-primary); outline-offset: 1px; }
+.scp-ccard__key { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scp-ccard__sub { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scp-dropmark { grid-row: 1; margin: -8px 0; background: var(--scp-primary); width: 3px; z-index: 2; pointer-events: none; }
+.scp-calpanels { display: flex; flex-wrap: wrap; gap: 16px; }
+.scp-calpanel { flex: 1 1 420px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.scp-calpanel__label { font-size: 12px; font-weight: 600; color: var(--scp-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.scp-calpanel__key { font-weight: 700; font-size: 15px; }
+.scp-overload__group { display: flex; flex-direction: column; gap: 4px; }
+.scp-overload__head { font-weight: 600; }
+.scp-overload__list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+.scp-overload__list .scp-link.is-on { text-decoration: underline; }
+.scp-overload__effect { margin-top: 6px; padding: 8px 10px; background: var(--scp-bg); border-radius: 8px; }
+
+/* Half-day leave on the calendar: the block is half a day wide, so its label runs vertically. */
+.scp-shade--half { writing-mode: vertical-rl; transform: rotate(180deg); align-items: center; justify-content: flex-end; padding: 4px 0; }
+.scp-leave.is-full, .scp-leave.is-am, .scp-leave.is-pm { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; }

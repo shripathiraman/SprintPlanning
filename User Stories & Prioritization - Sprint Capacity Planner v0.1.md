@@ -2,7 +2,7 @@
 
 Nov 19, 2026 · @Shripathi Raman R
 
-Version 0.3 (20 Nov 2026: US-09 notes the SM convention for one person doing both Dev and BA). Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.6](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
+Version 0.4 (20 Nov 2026: US-13 updated for PRD v0.7, half-day leave is the morning or the afternoon). Version 0.3 (20 Nov 2026: US-09 notes the SM convention for one person doing both Dev and BA). Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.7](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
 
 ## Story index
 
@@ -328,16 +328,17 @@ Screen design: [Tab 2 · Resources & Leave](screens/screen-2-resources-leave.png
 
 **As a** Scrum Master, **I want** to click days on a person-by-day grid to mark leave, **so that** I record absences in seconds instead of typing dates.
 
-**Context.** FR-18 and FR-30.
+**Context.** FR-18 and FR-30 (PRD v0.7). A half day is the morning or the afternoon; either counts as half a day of leave.
 
 **Acceptance criteria**
 
-- **AC-1 Cycle** — **Given** a working day, **when** I click it repeatedly, **then** it cycles free, full day, half day, free.
+- **AC-1 Cycle** — **Given** a working day, **when** I click it repeatedly, **then** it cycles free, Full day, Morning, Afternoon, free, and the cell shows that label.
 - **AC-2 Holiday locked** — **Given** a day is an office holiday for that person's location, **when** I click it, **then** nothing changes.
 - **AC-3 Totals** — **Given** Marc has two full days of leave, **when** I look at his row, **then** his leave total reads 2.0 and his net reads 8.8 MD (80%, 15% ceremonies).
 - **AC-4 Keyboard** — **Given** I use the keyboard, **when** I tab to a day and press Enter, **then** it cycles as with a click.
+- **AC-5 Afternoon off** — **Given** Gabriela takes the afternoon of Wed 13 Jan off, **when** Tab 4 places her cards, **then** a card that reaches that day runs through the morning, stops at midday and continues the next morning; her leave total counts 0.5, the same as a morning off.
 
-**Technical notes.** Leave stored per person per day in `scp-plan.json`; never copied to the snapshot.
+**Technical notes.** Leave stored per person per day in `scp-plan.json` as full day, morning or afternoon; never copied to the snapshot. Plans saved before PRD v0.7 hold a half day without its half: it loads as a Morning, so totals and capacity do not change.
 
 **Dependencies.** US-12.
 

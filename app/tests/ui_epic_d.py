@@ -48,7 +48,7 @@ def design_sprint(app):
     for pid, d in [("marc", "2027-01-07"), ("marc", "2027-01-08"), ("gabriela", "2027-01-19")]:
         leave(app, pid, d)
     leave(app, "karthik", "2027-01-21")
-    leave(app, "karthik", "2027-01-21")       # full day -> half day
+    leave(app, "karthik", "2027-01-21")       # full day -> morning
     app.tab(CAPACITY)
     app.page.wait_for_selector("[data-test=strip]")
 
@@ -93,10 +93,10 @@ def _(app):
     cols = ["days", "holidays", "minus-leave", "after", "availability", "net", "leave"]
     want = {
         "lorenzo": ["15", "0", "0", "12.75", "100%", "12.8", "—"],
-        "marc": ["15", "0", MINUS + "2", "11.05", "80%", "8.8", "Thu 7 – Fri 8 Jan"],
+        "marc": ["15", "0", MINUS + "2", "11.05", "80%", "8.8", "Thu 7 – Fri 8 Jan (Full day)"],
         "priya": ["15", MINUS + "1", "0", "11.90", "100%", "11.9", "—"],
-        "gabriela": ["15", "0", MINUS + "1", "11.90", "100%", "11.9", "Tue 19 Jan"],
-        "karthik": ["15", MINUS + "1", MINUS + "0.5", "11.47", "100%", "11.5", "Thu 21 Jan (½ day)"],
+        "gabriela": ["15", "0", MINUS + "1", "11.90", "100%", "11.9", "Tue 19 Jan (Full day)"],
+        "karthik": ["15", MINUS + "1", MINUS + "0.5", "11.47", "100%", "11.5", "Thu 21 Jan (Morning)"],
     }
     for pid, w in want.items():
         got = [cell(app, pid, c) for c in cols]
