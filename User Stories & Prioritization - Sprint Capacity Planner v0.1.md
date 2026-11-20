@@ -2,7 +2,7 @@
 
 Nov 19, 2026 · @Shripathi Raman R
 
-Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.6](https://claude.ai/artifact/Kg43FNpd8owHwh1pNzRmAb), grouped in six epics that follow the tabs. Each epic links to its screen on the design canvas (https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
+Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.6](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
 
 ## Story index
 
@@ -41,7 +41,7 @@ Personas follow the PRD: Scrum Master (SM, primary), Product Owner (PO), team me
 
 Everything here is set once per team and saved with Save config (FR-8). Tabs 1-4 stay disabled until US-01 passes.
 
-Screen design: [Config](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Config) — US-01 to US-06.
+Screen design: [Config](screens/screen-0-config.png) — US-01 to US-06.
 
 ![Config screen](screens/screen-0-config.png)
 
@@ -66,7 +66,7 @@ Screen design: [Config](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboa
 
 **Technical notes.** `GET <ctx>/rest/jiraanywhere/1.0/servers` to find the linked Jira, then `GET /rest/api/2/myself` through the link proxy; code in `scp-jira.js`. Runs on its own when the page loads.
 
-**Dependencies.** Confluence linked to jira.group.bank and the link authorised for planner users (Confluence admin, in place).
+**Dependencies.** Confluence linked to Jira and the link authorised for planner users (Confluence admin, in place).
 
 **Out of scope.** Any write to Jira. Checking the project (US-02).
 
@@ -180,7 +180,7 @@ Screen design: [Config](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboa
 
 Tab 1 turns the sprint's Jira tickets into man-days per role. Nothing here writes to Jira.
 
-Screen design: [Tab 1 · Sprint Tickets](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Tickets) — sprint header (US-07), ticket table (US-08), flag panel (US-09), Contributor dropdown on PCAP-418 (US-10), change list and Reload (US-11).
+Screen design: [Tab 1 · Sprint Tickets](screens/screen-1-sprint-tickets.png) — sprint header (US-07), ticket table (US-08), flag panel (US-09), Contributor dropdown on PCAP-418 (US-10), change list and Reload (US-11).
 
 ![Tab 1 Sprint Tickets screen](screens/screen-1-sprint-tickets.png)
 
@@ -218,7 +218,7 @@ Screen design: [Tab 1 · Sprint Tickets](https://claude.ai/artifact/DMiZHX8VHaXQ
 
 - **AC-1 Columns** — **Given** the sprint has tickets, **when** Tab 1 loads, **then** each row shows Ticket (link to Jira), Summary, Type, Contributor, Backup Assignee, SP, Total MD, Dev MD, BA MD.
 - **AC-2 Totals** — **Given** a 10-ticket fixture, **when** it loads, **then** the totals row matches the hand-calculated values.
-- **AC-3 Link** — **Given** I click a ticket key, **when** the link opens, **then** it goes to that ticket on jira.group.bank.
+- **AC-3 Link** — **Given** I click a ticket key, **when** the link opens, **then** it goes to that ticket on the Jira server Confluence is linked to.
 
 **Design notes.** Sprint Tickets screen on the design canvas; Dev values in blue, BA in orange.
 
@@ -291,7 +291,7 @@ Screen design: [Tab 1 · Sprint Tickets](https://claude.ai/artifact/DMiZHX8VHaXQ
 
 Tab 2 holds every per-sprint input about people. Leave is personal data and stays on the restricted planning page (US-22).
 
-Screen design: [Tab 2 · Resources & Leave](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Resources) — resource table (US-12), clickable leave grid (US-13), holidays in this sprint and one-off form (US-14).
+Screen design: [Tab 2 · Resources & Leave](screens/screen-2-resources-leave.png) — resource table (US-12), clickable leave grid (US-13), holidays in this sprint and one-off form (US-14).
 
 ![Tab 2 Resources and Leave screen](screens/screen-2-resources-leave.png)
 
@@ -363,7 +363,7 @@ Screen design: [Tab 2 · Resources & Leave](https://claude.ai/artifact/DMiZHX8VH
 
 Tab 3 is read-only: it calculates and shows, and every input is edited in Config or Tab 2.
 
-Screen design: [Tab 3 · Capacity](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Capacity) — gross-to-net strip and per-resource table (US-15).
+Screen design: [Tab 3 · Capacity](screens/screen-3-capacity.png) — gross-to-net strip and per-resource table (US-15).
 
 ![Tab 3 Capacity screen](screens/screen-3-capacity.png)
 
@@ -394,7 +394,7 @@ Screen design: [Tab 3 · Capacity](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd
 
 Tab 4 answers the planning question: can this team finish this sprint? Cards are drawn in days at each person's net rate, so overload shows as work running past the sprint end.
 
-Screen design: [Tab 4 · Planning Calendar](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Main) — cards in days with the After sprint end zone (US-16), verdict banner (US-18), suggested rebalance panel (US-19). Drag and drop (US-17) is described in its acceptance criteria; the static screen shows the result, not the gesture.
+Screen design: [Tab 4 · Planning Calendar](screens/screen-4-planning-calendar.png) — cards in days with the After sprint end zone (US-16), verdict banner (US-18), suggested rebalance panel (US-19). Drag and drop (US-17) is described in its acceptance criteria; the static screen shows the result, not the gesture.
 
 ![Tab 4 Planning Calendar screen](screens/screen-4-planning-calendar.png)
 
@@ -486,7 +486,7 @@ Screen design: [Tab 4 · Planning Calendar](https://claude.ai/artifact/DMiZHX8VH
 
 These stories keep the plan safe, keep leave private and let the whole team see the commitment.
 
-Screen design: Save plan and Publish to team in the header of [every tab](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Tickets) (US-20), the "Restricted · SM & PO only" marker (US-22), and the [Published sprint page](https://claude.ai/artifact/DMiZHX8VHaXQPBSEfd7bpY#artboard-Published) (US-23, US-24). The read-only state (US-21) has no screen yet.
+Screen design: Save plan and Publish to team in the header of [every tab](screens/screen-1-sprint-tickets.png) (US-20), the "Restricted · SM & PO only" marker (US-22), and the [Published sprint page](screens/screen-5-published-page.png) (US-23, US-24). The read-only state (US-21) has no screen yet.
 
 ![Published sprint page](screens/screen-5-published-page.png)
 
@@ -588,7 +588,7 @@ Screen design: Save plan and Publish to team in the header of [every tab](https:
 
 ## Prioritization
 
-**Decision:** which stories go into the pilot release for one team, and which follow. **Recommendation:** build the 17 Must stories, including US-11 Reload, as Release 1; drag and drop (US-17) and Publish (US-23) follow in Release 2. Every score below is Claude's judgment from the PRD, not team or vendor data; replace it at refinement.
+**Decision:** which stories go into the pilot release for one team, and which follow. **Recommendation:** build the 17 Must stories, including US-11 Reload, as Release 1; drag and drop (US-17) and Publish (US-23) follow in Release 2. Every score below is a first-pass judgment from the PRD, not team or vendor data; replace it at refinement.
 
 ### Which frameworks ran
 
