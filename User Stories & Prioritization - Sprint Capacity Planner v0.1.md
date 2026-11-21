@@ -2,7 +2,7 @@
 
 Nov 19, 2026 · @Shripathi Raman R
 
-Version 0.4 (20 Nov 2026: US-13 updated for PRD v0.7, half-day leave is the morning or the afternoon). Version 0.3 (20 Nov 2026: US-09 notes the SM convention for one person doing both Dev and BA). Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.7](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
+Version 0.5 (20 Nov 2026: US-21 to US-23 notes for PRD v0.8, Epic F as built). Version 0.4 (20 Nov 2026: US-13 updated for PRD v0.7, half-day leave is the morning or the afternoon). Version 0.3 (20 Nov 2026: US-09 notes the SM convention for one person doing both Dev and BA). Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.8](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
 
 ## Story index
 
@@ -523,7 +523,7 @@ Screen design: Save plan and Publish to team in the header of [every tab](screen
 
 **As a** Delivery Manager, **I want** a plan to freeze when its sprint starts, **so that** it stays as the record of what the team committed to.
 
-**Context.** FR-26.
+**Context.** FR-26. The sprint's state is read from Jira each time the page loads; Publish still works on a locked plan.
 
 **Acceptance criteria**
 
@@ -540,7 +540,7 @@ Screen design: Save plan and Publish to team in the header of [every tab](screen
 
 **As a** Scrum Master, **I want** only the SM and PO to open the planning page, **so that** colleagues' leave and availability stay private (GDPR, Luxembourg).
 
-**Context.** FR-28. Done with Confluence page restrictions, not code.
+**Context.** FR-28. Done with Confluence page restrictions, not code; the planner's top bar shows whether the page is restricted and warns when it is not.
 
 **Acceptance criteria**
 
@@ -566,7 +566,7 @@ Screen design: Save plan and Publish to team in the header of [every tab](screen
 - **AC-3 No leave** — **Given** the page is published, **when** I open `scp-snapshot.json`, **then** it holds no leave dates, availability % or per-person holidays.
 - **AC-4 Name clash** — **Given** a page with that title exists but was not created by this plan, **when** I publish, **then** Publish stops and names the page; nothing is overwritten.
 
-**Technical notes.** `POST /rest/api/content` as the publishing user; parent found by stored page ID.
+**Technical notes.** `POST /rest/api/content` as the publishing user; parent found by stored page ID (kept in `scp-config.json`), the sprint page by the ID kept in `scp-plan.json`. Every Publish writes `scp-view.css` and `scp-view.js` to the parent page (PRD v0.8). Publish is disabled while the plan has unsaved changes.
 
 **Dependencies.** US-20, US-22.
 

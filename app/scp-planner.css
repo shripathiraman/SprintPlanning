@@ -427,3 +427,8 @@
 /* Half-day leave on the calendar: the block is half a day wide, so its label runs vertically. */
 .scp-shade--half { writing-mode: vertical-rl; transform: rotate(180deg); align-items: center; justify-content: flex-end; padding: 4px 0; }
 .scp-leave.is-full, .scp-leave.is-am, .scp-leave.is-pm { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 2px; }
+
+/* ---------------- Epic F · access marker, locked plan (US-21, US-22) ---------------- */
+.scp-restricted--open { color: var(--scp-bad); font-weight: 600; }
+.scp-restricted--unknown { color: var(--scp-warn); }
+.scp-banner--lock { background: #eef1f5; color: var(--scp-text); border: 1px solid #c9d0db; }

@@ -4,7 +4,7 @@
  * Replaces window.fetch with a fake Confluence + Jira so the planner runs in a
  * plain browser:
  *   - Jira calls through /plugins/servlet/applinks/proxy answer from FIXTURES
- *   - Confluence attachment REST calls read/write localStorage
+ *   - Confluence REST calls (pages, attachments, read restrictions) read/write localStorage
  * A scenario switch reproduces the connection failures of US-01:
  *   localStorage['scp-mock-scenario'] = ok | unauthorised | noperm | nolink | down
  */
@@ -19,6 +19,7 @@
 
   var MOCK = window.SCP_MOCK = {
     calls: [],
+    requests: [],          // every Confluence request and every Jira proxy call, with its method
     scenario: function () { return localStorage.getItem(LS_SCENARIO) || 'ok'; }
   };
 
@@ -127,11 +128,11 @@
     localStorage.setItem(LS_ATT, JSON.stringify(a));
   }
 
-  function attJson(a) {
+  function attJson(a, pageId) {
     return {
       id: a.id, type: 'attachment', title: a.title,
       version: { number: a.version, when: a.when, by: { displayName: a.by } },
-      _links: { download: '/download/attachments/' + PAGE_ID + '/' + a.title + '?version=' + a.version + '&api=v2' }
+      _links: { download: '/download/attachments/' + (pageId || PAGE_ID) + '/' + a.title + '?version=' + a.version + '&api=v2' }
     };
   }
 
@@ -210,42 +211,154 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Confluence attachments                                              */
+  /* Confluence: pages, attachments, restrictions                        */
+  /*                                                                     */
+  /* The planning page (900001) keeps its attachments under LS_ATT as     */
+  /* before. Every other page (the parent "Sprint plans - <Squad>" and    */
+  /* the sprint pages Publish creates) lives in LS_PAGES with its own     */
+  /* attachments. Tests can set read restrictions in LS_RESTR.            */
   /* ------------------------------------------------------------------ */
+
+  var LS_PAGES = 'scp-mock-pages';
+  var LS_RESTR = 'scp-mock-restrictions';
+  var SPACE = 'DD';
+  var BASE_PAGES = {
+    '800001': { id: '800001', title: 'Digital Delivery', space: SPACE, parentId: null, body: '', version: 1, atts: {} },
+    '900001': { id: '900001', title: 'Sprint planning — Squad Orion', space: SPACE, parentId: '800001', body: '', version: 3, atts: null }
+  };
+
+  function pages() {
+    var p;
+    try { p = JSON.parse(localStorage.getItem(LS_PAGES) || 'null'); } catch (e) { p = null; }
+    return p || JSON.parse(JSON.stringify(BASE_PAGES));
+  }
+
+  function savePages(p) {
+    localStorage.setItem(LS_PAGES, JSON.stringify(p));
+  }
+
+  function attsOf(all, id) {
+    if (id === PAGE_ID) { return atts(); }
+    return all[id] ? all[id].atts : null;
+  }
+
+  function saveAttsOf(all, id, a) {
+    if (id === PAGE_ID) { saveAtts(a); return; }
+    all[id].atts = a;
+    savePages(all);
+  }
+
+  function ancestors(all, id) {
+    var out = [];
+    var cur = all[id] && all[id].parentId;
+    while (cur && all[cur]) { out.unshift({ id: cur, type: 'page', title: all[cur].title }); cur = all[cur].parentId; }
+    return out;
+  }
+
+  function pageJson(all, pg) {
+    return {
+      id: pg.id, type: 'page', status: 'current', title: pg.title,
+      space: { key: pg.space },
+      version: { number: pg.version, when: pg.when || '2026-11-19T17:00:00.000Z', by: { displayName: pg.by || 'Shripathi R.' } },
+      ancestors: ancestors(all, pg.id),
+      body: { storage: { value: pg.body || '', representation: 'storage' } },
+      _links: { webui: '/pages/viewpage.action?pageId=' + pg.id }
+    };
+  }
+
+  function user() {
+    return localStorage.getItem(LS_USER) || 'Shripathi R.';
+  }
 
   function confluence(u, init, path) {
     var method = (init && init.method) || 'GET';
     var p = path || u.pathname;
-    var a = atts();
+    var all = pages();
     var m;
-    if (method === 'GET' && p === '/rest/api/content/' + PAGE_ID + '/child/attachment') {
-      var f = a[u.searchParams.get('filename')];
-      return json(200, { results: f ? [attJson(f)] : [], size: f ? 1 : 0 });
-    }
-    if (method === 'GET' && (m = new RegExp('^/download/attachments/' + PAGE_ID + '/(.+)$').exec(p))) {
-      var g = a[decodeURIComponent(m[1])];
-      return g ? text(200, g.body, { 'Content-Type': 'application/json' }) : text(404, 'no file');
-    }
-    if (method === 'POST') {
-      if (!init.headers || init.headers['X-Atlassian-Token'] !== 'no-check') { return text(403, 'XSRF check failed'); }
-      var file = init.body.get('file');
-      var isUpdate = /\/child\/attachment\/[^/]+\/data$/.test(p);
-      return file.text().then(function (body) {
-        var title = file.name;
-        var prev = a[title];
-        if (isUpdate && !prev) { return text(404, 'no such attachment'); }
-        var rec = {
-          id: prev ? prev.id : 'att' + Math.floor(Math.random() * 1e6),
-          title: title,
-          version: prev ? prev.version + 1 : 1,
-          when: new Date().toISOString(),
-          by: localStorage.getItem(LS_USER) || 'Shripathi R.',
-          body: body
-        };
-        a[title] = rec;
-        saveAtts(a);
-        return json(200, isUpdate ? attJson(rec) : { results: [attJson(rec)] });
+    MOCK.requests.push({ method: method, path: p });
+
+    // Search by space and title.
+    if (p === '/rest/api/content' && method === 'GET') {
+      var found = Object.keys(all).map(function (k) { return all[k]; }).filter(function (pg) {
+        return pg.space === u.searchParams.get('spaceKey') && pg.title === u.searchParams.get('title');
       });
+      return json(200, { results: found.map(function (pg) { return pageJson(all, pg); }), size: found.length });
+    }
+    // Create a page.
+    if (p === '/rest/api/content' && method === 'POST') {
+      if (!init.headers || init.headers['X-Atlassian-Token'] !== 'no-check') { return text(403, 'XSRF check failed'); }
+      var req = JSON.parse(init.body);
+      var dup = Object.keys(all).some(function (k) { return all[k].space === req.space.key && all[k].title === req.title; });
+      if (dup) { return json(400, { statusCode: 400, message: 'A page with this title already exists: A page already exists with the title ' + req.title + ' in this space' }); }
+      var id = String(910000 + Object.keys(all).length);
+      all[id] = { id: id, title: req.title, space: req.space.key, parentId: req.ancestors && req.ancestors[0] ? String(req.ancestors[0].id) : null,
+        body: req.body.storage.value, version: 1, by: user(), when: new Date().toISOString(), atts: {} };
+      savePages(all);
+      return json(200, pageJson(all, all[id]));
+    }
+    // Read restrictions of a page (US-22).
+    if ((m = /^\/rest\/api\/content\/(\d+)\/restriction\/byOperation\/read$/.exec(p)) && method === 'GET') {
+      var r;
+      try { r = JSON.parse(localStorage.getItem(LS_RESTR) || 'null'); } catch (e) { r = null; }
+      r = r || { '900001': { user: ['Shripathi R.', 'Product Owner'], group: [] } };
+      var mine = r[m[1]] || { user: [], group: [] };
+      return json(200, { operation: 'read', restrictions: {
+        user: { results: mine.user.map(function (n) { return { type: 'known', displayName: n }; }), size: mine.user.length },
+        group: { results: mine.group.map(function (n) { return { type: 'group', name: n }; }), size: mine.group.length } } });
+    }
+    // Read or update one page.
+    if ((m = /^\/rest\/api\/content\/(\d+)$/.exec(p))) {
+      var pg = all[m[1]];
+      if (!pg) { return json(404, { statusCode: 404, message: 'No content found with id: ' + m[1] }); }
+      if (method === 'GET') { return json(200, pageJson(all, pg)); }
+      if (method === 'PUT') {
+        if (!init.headers || init.headers['X-Atlassian-Token'] !== 'no-check') { return text(403, 'XSRF check failed'); }
+        var upd = JSON.parse(init.body);
+        if (!upd.version || upd.version.number !== pg.version + 1) {
+          return json(409, { statusCode: 409, message: 'Version must be incremented on update. Current version is: ' + pg.version });
+        }
+        pg.title = upd.title;
+        pg.body = upd.body.storage.value;
+        pg.version = upd.version.number;
+        pg.by = user();
+        pg.when = new Date().toISOString();
+        savePages(all);
+        return json(200, pageJson(all, pg));
+      }
+    }
+    // Attachments of any page.
+    if ((m = /^\/rest\/api\/content\/(\d+)\/child\/attachment(?:\/([^/]+)\/data)?$/.exec(p))) {
+      var pid = m[1];
+      var a = attsOf(all, pid);
+      if (!a) { return json(404, { statusCode: 404, message: 'No content found with id: ' + pid }); }
+      if (method === 'GET') {
+        var name = u.searchParams.get('filename');
+        var f = a[name];
+        return json(200, { results: f ? [attJson(f, pid)] : [], size: f ? 1 : 0 });
+      }
+      if (method === 'POST') {
+        if (!init.headers || init.headers['X-Atlassian-Token'] !== 'no-check') { return text(403, 'XSRF check failed'); }
+        var file = init.body.get('file');
+        var isUpdate = !!m[2];
+        return file.text().then(function (body) {
+          var title = file.name;
+          var prev = a[title];
+          if (isUpdate && !prev) { return text(404, 'no such attachment'); }
+          var rec = {
+            id: prev ? prev.id : 'att' + Math.floor(Math.random() * 1e6), title: title,
+            version: prev ? prev.version + 1 : 1, when: new Date().toISOString(), by: user(),
+            mediaType: file.type || 'application/octet-stream', body: body
+          };
+          a[title] = rec;
+          saveAttsOf(all, pid, a);
+          return json(200, isUpdate ? attJson(rec, pid) : { results: [attJson(rec, pid)] });
+        });
+      }
+    }
+    if (method === 'GET' && (m = /^\/download\/attachments\/(\d+)\/(.+)$/.exec(p))) {
+      var aa = attsOf(all, m[1]) || {};
+      var g = aa[decodeURIComponent(m[2])];
+      return g ? text(200, g.body, { 'Content-Type': g.mediaType || 'application/json' }) : text(404, 'no file');
     }
     return text(404, 'Mock Confluence has no route for ' + method + ' ' + p);
   }
@@ -270,10 +383,11 @@
     var path = u.protocol === 'file:' ? u.pathname.replace(/^\/[A-Za-z]:(?=\/)/, '') : u.pathname;
     if (path === '/rest/jiraanywhere/1.0/servers') { return servers(); }
     if (path.indexOf('/plugins/servlet/applinks/proxy') !== -1) {
+      MOCK.requests.push({ method: (init && init.method) || 'GET', path: 'jira:' + u.searchParams.get('path') });
       if (u.searchParams.get('appId') !== 'mock-link') { return text(404, 'No such application link'); }
       return jira(u.searchParams.get('path'));
     }
-    if (path.indexOf('/rest/api/content/') === 0 || path.indexOf('/download/attachments/') === 0) {
+    if (path === '/rest/api/content' || path.indexOf('/rest/api/content/') === 0 || path.indexOf('/download/attachments/') === 0) {
       return confluence(u, init, path);
     }
     return realFetch(input, init);

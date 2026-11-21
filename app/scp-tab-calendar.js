@@ -148,6 +148,9 @@
     return { title: title, detail: parts.join(' · ') };
   }
 
+  /** Verdict title and detail line, shared with the published snapshot (FR-29). */
+  tab.verdictText = function (cal) { return verdictText(cal); };
+
   function renderBanner(cal) {
     var v = cal.verdict;
     var t = verdictText(cal);
@@ -225,7 +228,7 @@
     var focus = 'card-' + k.id + (i ? '-' + i : '');
     var aria = k.key + ' ' + (ROLE_TAG[k.role] || 'no MD') + ' card, ' + calc.fmt1(k.md) + ' MD' + (total > 1 ? ', part ' + (i + 1) + ' of ' + total : '') +
       (k.role === 'none' ? '' : '. Arrow keys move it: left and right by half a day, up and down to another person');
-    return '<button type="button" class="' + cls + '" style="' + cols(part.s, part.e) + '" data-card="' + ui.esc(k.id) + '" data-key="' + ui.esc(k.key) +
+    return '<button type="button" data-ro-ok class="' + cls + '" style="' + cols(part.s, part.e) + '" data-card="' + ui.esc(k.id) + '" data-key="' + ui.esc(k.key) +
       '" data-role="' + k.role + '" data-part="' + i + '" data-focus="' + ui.esc(focus) + '"' + (k.role === 'none' ? ' data-fixed="1"' : '') +
       ' aria-label="' + ui.esc(aria) + '" title="' + ui.esc(t.key + ' · ' + (t.summary || '')) + '">' +
       '<span class="scp-ccard__key">' + ui.esc(k.key) + '</span><span class="scp-ccard__sub">' + ui.esc(label) + '</span></button>';
@@ -313,7 +316,7 @@
         var items = g.cards.map(function (k) {
           var where = k.who === 'Unassigned' ? 'unassigned' : (k.s >= cal.W - 1e-9 ? 'after sprint end' : 'runs past sprint end');
           var on = view.without === k.key;
-          return '<li><button type="button" class="scp-link' + (on ? ' is-on' : '') + '" data-act="without" data-key="' + ui.esc(k.key) + '" aria-pressed="' + on + '">' +
+          return '<li><button type="button" data-ro-ok class="scp-link' + (on ? ' is-on' : '') + '" data-act="without" data-key="' + ui.esc(k.key) + '" aria-pressed="' + on + '">' +
             '<b>' + ui.esc(k.key) + ' · ' + ROLE_TAG[k.role] + ' ' + calc.fmt1(k.md) + ' MD</b></button> ' +
             '<span class="scp-muted">' + (k.who && g.kind === 'role' ? ui.esc(k.who) + ' · ' : '') + where + '</span></li>';
         }).join('');
@@ -356,7 +359,7 @@
     var p = plan();
     var cal = calc.planCalendar(p, cfg());
     var hit = findCard(cal, id);
-    if (!hit || hit.k.role === 'none') { return false; }
+    if (!hit || hit.k.role === 'none' || SCP.app.readOnly()) { return false; }
     var k = hit.k;
     var target = person ? resourceOf(person) : null;
     if (person && !target) { return false; }
@@ -468,7 +471,7 @@
       });
       if (btn.getAttribute('data-fixed')) { return; }
       btn.addEventListener('pointerdown', function (e) {
-        if (e.button !== 0) { return; }
+        if (e.button !== 0 || SCP.app.readOnly()) { return; }
         var at = laneAt(root, e.clientX, e.clientY);
         // Days between the card's start and the pointer, so the card's start lands where it is dropped.
         var hit = findCard(calc.planCalendar(plan(), cfg()), btn.getAttribute('data-card'));

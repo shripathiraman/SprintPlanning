@@ -1,6 +1,6 @@
 # PRD: Sprint Capacity Planner (Confluence + Jira)
 
-Nov 20, 2026 · @Shripathi Raman R · Status: Draft v0.7
+Nov 20, 2026 · @Shripathi Raman R · Status: Draft v0.8
 
 ## Overview
 
@@ -171,7 +171,7 @@ Screen design: [Tab 4 · Planning Calendar](screens/screen-4-planning-calendar.p
 - FR-23: Card length is the number of days the work takes for that person: MD divided by the person's daily rate, (1 - ceremony %) x availability %, drawn at its exact length with no rounding per card. Cards on a row follow one another; only the row's finish point is rounded up to the next half day and shown as a Done date in the row header. A card can be split across non-adjacent days and skips leave and holidays; on a half day it skips only the half that is off (a morning off blocks the first half of the day, an afternoon off the second half). Load still counts MD, not days. Cards that run past the sprint end show in an After sprint end zone at the right of the calendar.
 - FR-24: A verdict banner shows **Feasible**, **At risk** or **Not feasible**, with load vs net capacity per role (see rules below).
 - FR-25: **Save plan** stores the plan as a JSON attachment on the planning page. It is the single save for Tabs 1-4 and sits in the same place in every tab's header: one click saves the Tab 1 dropdown choices (FR-32), Tab 2 resources, leave and one-off holidays, and the Tab 4 card placements together. Leaving the page with unsaved changes asks for confirmation. Config keeps its own Save config (FR-8). Nothing is written back to Jira; reassignments made in the calendar live only in the plan.
-- FR-26: Once the sprint becomes active in Jira, the plan turns read-only and stays on the page as the commitment record.
+- FR-26: Once the sprint becomes active in Jira, the plan turns read-only and stays on the page as the commitment record. The sprint's state is read from Jira each time the page loads; a locked plan shows a banner saying why, every input and drag is disabled, Save plan and Reload are disabled, and Publish still works.
 
 #### Access and publishing
 
@@ -179,8 +179,8 @@ Screen design: [Published sprint page](screens/screen-5-published-page.png); Sav
 
 ![Published sprint page: verdict and load per person, no leave detail](screens/screen-5-published-page.png)
 
-- FR-28: The planning page is restricted to the SM and PO through Confluence page restrictions. Only they can edit the plan and see leave dates and availability.
-- FR-29: **Publish** creates, on first use, a new Confluence page titled "\<Sprint name> - \<Squad name>" (squad = this page's Team value), readable by everyone. It holds a snapshot: tickets, cards, load and net capacity per resource, verdict. Publishing again updates the same page and never creates a second one. Sprint pages sit under a parent page "Sprint plans - \<Squad name>" in the same space; the first Publish creates that parent if it does not exist. Leave dates, availability % and holidays per person are left out of the snapshot.
+- FR-28: The planning page is restricted to the SM and PO through Confluence page restrictions. Only they can edit the plan and see leave dates and availability. The planner's top bar shows whether the page has view restrictions of its own (who can view it, on hover) and warns when it has none, since leave would then be visible to everyone who can view the page.
+- FR-29: **Publish** creates, on first use, a new Confluence page titled "\<Sprint name> - \<Squad name>" (squad = this page's Team value), readable by everyone. It holds a snapshot: tickets, cards, load and net capacity per resource, verdict. Publishing again updates the same page and never creates a second one. Sprint pages sit under a parent page "Sprint plans - \<Squad name>" in the same space; the first Publish creates that parent if it does not exist. Leave dates, availability % and holidays per person are left out of the snapshot. Every Publish also writes the viewer files (scp-view.css, scp-view.js) to the parent page, so a parent page created by Publish works at once and the viewer is never kept on the planning page. Publish needs a saved plan: it is disabled, with the reason shown, while there are unsaved changes.
 
 ### Calculation Rules
 
@@ -299,7 +299,7 @@ The product is built only from plain HTML, CSS, JavaScript and JSON files, each 
 | Planning page | `scp-app.js` | Start-up, tab switching, Save plan (FR-25); loaded last |
 | Planning page | `scp-config.json` | Team config: field mapping, SP bands, split, ceremony %, thresholds, locations and holiday calendars |
 | Planning page | `scp-plan.json` | The open plan: resources, leave, availability, dropdown choices, card positions, verdict |
-| Parent page "Sprint plans - \<Squad>" (everyone) | `scp-view.css`, `scp-view.js` | The read-only viewer, shared by every sprint page; updated once here, not per sprint page |
+| Parent page "Sprint plans - \<Squad>" (everyone) | `scp-view.css`, `scp-view.js` | The read-only viewer, shared by every sprint page; written here by every Publish (its code travels in `scp-publish.js`), not per sprint page |
 | Each sprint page (everyone) | `scp-view-macro.html` | Macro body written by Publish: loads the parent page's viewer files |
 | Each sprint page | `scp-snapshot.json` | That sprint's snapshot, without leave dates, availability % or per-person holidays |
 
@@ -324,7 +324,7 @@ Team: a custom field, mapped in Config by its ID. The SM picks the squad value t
 
 ### Data Requirements
 
-- Planning page attachment (JSON): config, SP bands, split %, locations and holiday calendars, resources with role, location and availability, leave dates, card placements, verdict.
+- Planning page attachment (JSON): config, SP bands, split %, locations and holiday calendars, resources with role, location and availability, leave dates, card placements, verdict. The config also keeps the parent page's ID, and the plan the ID of its published sprint page, so Publish finds both after a rename or move.
 - Sprint page attachment (JSON), one per published sprint: snapshot of tickets, cards, load and net capacity per resource, verdict. No leave dates, availability % or per-person holidays.
 - Not stored: Jira ticket content beyond the fields listed; it is re-read on Reload.
 - Leave dates are personal data (GDPR, Luxembourg). Any attachment is readable by everyone who can view its page, so leave data lives only on the restricted planning page. Leave is removed from the attachment once the sprint closes plus the retention period set by the data owner.
@@ -444,7 +444,7 @@ The platform is settled, so Gate 1 is now about data: the Team field mapped and 
 
 ## Open Questions
 
-No questions open at v0.7. New ones from the pilot SM or the Confluence admin go here.
+No questions open at v0.8. New ones from the pilot SM or the Confluence admin go here.
 
 ### Resolved on 19 Nov 2026
 
@@ -469,6 +469,7 @@ No questions open at v0.7. New ones from the pilot SM or the Confluence admin go
 | Jira link ID (19 Nov 2026, v0.6) | Not stored or typed: found from Confluence's list of linked Jira servers, as in the Release Impact admin tool |
 | Where resources, leave and holidays are edited | New Tab 2 Resources & Leave between Sprint Tickets and Capacity; yearly location calendars stay in Config; Capacity becomes read-only |
 | Ticket with a Dev but no BA (or the reverse) | Follow the Edge Cases table: the named half is planned with its MD, the missing half goes to Unassigned; only a ticket with no SP is 0 MD |
+| Viewer files on the parent page (20 Nov 2026, v0.8) | Publish writes scp-view.css and scp-view.js to "Sprint plans - \<Squad>" on every Publish; no manual step, and they never sit on the planning page |
 | Half-day leave (20 Nov 2026, v0.7) | A half day is the morning or the afternoon, chosen in the leave grid; both count 0.5 day, and Tab 4 blocks only the half that is off. "Afternoon" rather than "evening": it is the second half of the working day |
 | Card length on the calendar | Days the work takes at the person's net daily rate, not MD, so overload shows as cards running past the sprint end; cards are exact, only each row's finish is rounded up to half a day |
 
@@ -497,6 +498,7 @@ No questions open at v0.7. New ones from the pilot SM or the Confluence admin go
 
 | Version | Date | Author | Changes |
 | --- | --- | --- | --- |
+| 0.8 | 2026-11-20 | Shripathi Raman Radhakrishnan | Epic F as built: FR-29 Publish writes the viewer files to the parent page on every Publish and needs a saved plan; FR-26 sprint state read on every page load, a locked plan still publishes; FR-28 top bar shows whether the planning page is restricted; File Structure parent row and Data Requirements (parent and sprint page IDs kept); Resolved decision |
 | 0.7 | 2026-11-20 | Shripathi Raman Radhakrishnan | Half-day leave is the morning or the afternoon: FR-18; FR-30 click cycle free, Full day, Morning, Afternoon, free with those labels on the grid; FR-23 cards skip only the half that is off; FR-30 verification row; edge case for plans saved before v0.7; Resolved decision |
 | 0.6 | 2026-11-19 | Shripathi Raman Radhakrishnan | Config: project key typed in a text field with a Fetch from Jira button (FR-2), which also does the project permission check; Test connection checks the link and the user only (FR-1); Jira link found from Confluence's linked servers, no link ID (FR-1, Constraints, Integration Points); Integration Points add the linked-server lookup, proxy route, Team values and single-sprint calls; two edge cases for a wrong or edited key; Config screen updated. 2026-11-20: Jira host name dropped from FR-1, Constraints and Integration Points (the server comes from the application link) |
 | 0.5 | 2026-11-19 | Shripathi Raman Radhakrishnan | Screen designs added as images and links under Config, each tab and Access and publishing; User Experience lists all six screens; design canvas wins over Bloompeak for look |

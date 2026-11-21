@@ -70,6 +70,8 @@
     tab: 'config',
     planDirty: false,      // plan changed since last Save plan
     saving: false,
+    publishing: false,
+    access: null,          // view restrictions of this page: { restricted, users, groups } or { error } (FR-28)
     root: null
   };
 
@@ -88,7 +90,9 @@
       thresholds: Object.assign({}, calc.DEFAULT_THRESHOLDS, c.thresholds || {}),
       locations: (c.locations || []).map(function (l) {
         return { id: l.id, name: l.name, holidays: (l.holidays || []).map(function (h) { return Object.assign({}, h); }) };
-      })
+      }),
+      // Page ID of "Sprint plans - <Squad>", set by the first Publish (FR-29).
+      publish: { parentId: (c.publish && c.publish.parentId) || null }
     };
   };
 
@@ -119,6 +123,15 @@
    */
   app.offline = function () {
     return state.conn.status === 'error' && !!(state.plan && state.plan.loadedAt);
+  };
+
+  /**
+   * Once the plan's sprint is active (or closed) in Jira, the plan is the
+   * commitment record and cannot be changed (FR-26, US-21).
+   */
+  app.readOnly = function () {
+    var p = state.plan;
+    return !!(p && p.sprint && (p.sprint.state === 'active' || p.sprint.state === 'closed'));
   };
 
   app.tabsOpen = function () {
@@ -179,7 +192,7 @@
     var notice = noticeEl ? noticeEl.outerHTML : '<div class="scp-notice"></div>';
 
     root.innerHTML =
-      '<div class="scp-topbar"><span class="scp-restricted">' + LOCK_ICON + ' Restricted · SM &amp; PO only</span></div>' +
+      '<div class="scp-topbar">' + accessMarker() + '</div>' +
       '<div class="scp-wrap">' +
       '<header class="scp-head"></header>' +
       '<nav class="scp-tabs" role="tablist">' + nav + '</nav>' +
@@ -210,6 +223,7 @@
       return;
     }
     tab.render(head, body);
+    if (state.tab !== 'config' && app.readOnly()) { lock(head, body); }
     if (state.tab !== 'config' && app.offline()) {
       var e = state.conn.error;
       body.insertAdjacentHTML('afterbegin', '<div class="scp-banner scp-banner--warn" data-test="offline-banner" role="status">' +
@@ -225,6 +239,49 @@
       }
     }
   };
+
+  /**
+   * Marker at the top of the page: whether this planning page is restricted
+   * (FR-28, US-22). It reads the page's own view restrictions; the page itself
+   * is restricted in Confluence (page ··· menu > Restrictions), not by the tool.
+   */
+  function accessMarker() {
+    var a = state.access;
+    if (!a) { return ''; }
+    if (a.error) {
+      return '<span class="scp-restricted scp-restricted--unknown" data-test="access" data-access="unknown" title="' + ui.esc(a.error) + '">' +
+        'Could not check who can view this page</span>';
+    }
+    if (a.restricted) {
+      var who = a.users.concat(a.groups.map(function (g) { return 'group ' + g; }));
+      return '<span class="scp-restricted" data-test="access" data-access="restricted" title="' + ui.esc('Can view: ' + who.join(', ')) + '">' +
+        LOCK_ICON + ' Restricted \u00b7 SM &amp; PO only</span>';
+    }
+    return '<span class="scp-restricted scp-restricted--open" data-test="access" data-access="open">' +
+      'Not restricted: everyone who can view this page sees leave and availability. Restrict it to the SM and PO (page \u00b7\u00b7\u00b7 menu \u203a Restrictions).</span>';
+  }
+
+  /** Banner and disabled inputs of a locked plan (US-21 AC-1). Viewing stays possible. */
+  function lock(head, body) {
+    var p = state.plan;
+    body.insertAdjacentHTML('afterbegin', '<div class="scp-banner scp-banner--lock" data-test="locked-banner" role="status">' +
+      '<b>This plan is locked.</b> ' + ui.esc(p.sprint.name) + (p.sprint.state === 'closed' ? ' has closed' : ' has started') +
+      ' in Jira, so this plan is the commitment record and can no longer be changed. Publish still works. ' +
+      'To plan the next sprint, pick it in 1 \u00b7 Sprint Tickets.</div>');
+    body.querySelectorAll('input, select, textarea, button').forEach(function (el) {
+      if (!el.hasAttribute('data-ro-ok')) { el.disabled = true; }
+    });
+    head.querySelectorAll('[data-act="save-plan"], [data-act="reload"], [data-act="cal-reload"]').forEach(function (el) { el.disabled = true; });
+  }
+
+  function publishButton() {
+    var why = SCP.publish ? SCP.publish.blocker() : 'Publish is not loaded';
+    var p = state.plan;
+    var last = p && p.published ? 'Last published ' + ui.fmtWhen(p.published.at) + ' as \u201c' + p.published.title + '\u201d. ' : '';
+    return '<button type="button" class="scp-btn scp-btn--primary" data-act="publish"' + (why ? ' disabled' : '') +
+      ' title="' + ui.esc(why || last + 'Create or update the read-only sprint page for the team') + '">' +
+      (state.publishing ? 'Publishing\u2026' : 'Publish to team') + '</button>';
+  }
 
   /* ------------------------------------------------------------------ */
   /* Plan header and Save plan (FR-25)                                   */
@@ -248,15 +305,17 @@
     head.innerHTML =
       '<div class="scp-head__text"><div class="scp-eyebrow">Sprint Capacity Planner</div>' +
       '<h1 class="scp-title" data-test="plan-title">' + ui.esc(title) + '</h1>' +
-      (opts.sub ? '<div class="scp-sub">' + opts.sub + '</div>' : '') + '</div>' +
+      // The sub line is always there (empty if need be), so Save plan and Publish never move (US-20 AC-2).
+      '<div class="scp-sub">' + (opts.sub || '&nbsp;') + '</div></div>' +
       '<div class="scp-head__actions">' + (opts.lead || '') +
       (state.planDirty ? '<span class="scp-unsaved" data-test="unsaved">Unsaved changes</span>' : '') +
-      '<button type="button" class="scp-btn" data-act="save-plan"' + (plan && !state.saving ? '' : ' disabled') + '>' +
+      '<button type="button" class="scp-btn" data-act="save-plan"' + (plan && !state.saving && !app.readOnly() ? '' : ' disabled') + '>' +
       (state.saving ? 'Saving\u2026' : 'Save plan') + '</button>' +
-      '<button type="button" class="scp-btn scp-btn--primary" data-act="publish" disabled title="Publish to team is built with US-23">Publish to team</button>' +
+      publishButton() +
       '</div>';
     var save = head.querySelector('[data-act="save-plan"]');
     save.addEventListener('click', function () { app.savePlan(false); });
+    head.querySelector('[data-act="publish"]').addEventListener('click', function () { SCP.publish.run(); });
   };
 
   /** Save plan: one save for Tabs 1-4, with the concurrent-edit check (FR-25). */
@@ -292,6 +351,31 @@
   /* Start-up                                                            */
   /* ------------------------------------------------------------------ */
 
+  /** Read who may view this page and show it at the top (US-22). */
+  app.checkAccess = function () {
+    return SCP.store.readRestrictions().then(function (a) {
+      state.access = a;
+    }, function (err) {
+      state.access = { error: err.message };
+    }).then(function () { app.render(); });
+  };
+
+  /**
+   * When the page opens, ask Jira whether the plan's sprint has started: an
+   * active or closed sprint locks the plan (FR-26, US-21). Nothing is saved;
+   * the state is read again on every load.
+   */
+  app.checkSprintState = function () {
+    var p = state.plan;
+    if (!p || !p.sprint || !app.connected()) { return Promise.resolve(); }
+    return SCP.jira.sprint(p.sprint.id).then(function (s) {
+      if (s && s.state && s.state !== p.sprint.state && state.plan === p) {
+        p.sprint.state = s.state;
+        app.render();
+      }
+    }, function () { /* keep the saved state; the connection message says what is wrong */ });
+  };
+
   app.start = function (root) {
     state.root = root;
     // Leaving the page with unsaved plan changes asks for confirmation (FR-25, US-20 AC-3).
@@ -311,8 +395,9 @@
       state.plan = plan.data;
       state.planMeta = plan.meta;
       app.render();
+      app.checkAccess();
       // Test the Jira connection straight away so Tabs 1-4 open without a click (FR-1).
-      return SCP.tabs.config.testConnection();
+      return SCP.tabs.config.testConnection().then(function () { return app.checkSprintState(); });
     }).catch(function (err) {
       state.config = state.config || app.normaliseConfig(null);
       app.render();
