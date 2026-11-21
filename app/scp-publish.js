@@ -215,46 +215,49 @@
   publish.viewerCss = function () {
     return [
       '/* scp-view.css — Sprint Capacity Planner · read-only viewer. Written by Publish; do not edit here. */',
-      '.scpv { font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; color: #16202e; display: flex; flex-direction: column; gap: 16px; max-width: 1136px; }',
-      '.scpv-ro { align-self: flex-end; font-size: 12px; color: #5a6474; }',
-      '.scpv-sub { color: #5a6474; }',
-      '.scpv-pub { color: #5a6474; font-size: 12px; margin-top: -12px; }',
-      '.scpv-verdict { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 32px; align-items: center; border: 1px solid; border-radius: 12px; padding: 16px 20px; }',
-      '.scpv-verdict--atRisk { background: #fff4db; border-color: #f0d39a; color: #5c3a00; }',
-      '.scpv-verdict--notFeasible { background: #fdecea; border-color: #f3b8b1; color: #7a1a12; }',
-      '.scpv-verdict--feasible { background: #e6f4ec; border-color: #a9d8bd; color: #14532d; }',
-      '.scpv-verdict__text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 420px; }',
-      '.scpv-verdict__text b { font-size: 16px; }',
-      '.scpv-figs { display: flex; gap: 28px; }',
-      '.scpv-figs div { display: flex; flex-direction: column; font-size: 12px; }',
-      '.scpv-figs b { font-size: 19px; color: #16202e; }',
-      '.scpv-card { background: #fff; border: 1px solid #e3e7ee; border-radius: 12px; padding: 20px 24px; }',
-      '.scpv-card__head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #edf0f4; }',
-      '.scpv-card__head h2 { margin: 0; font-size: 16px; }',
-      '.scpv-card__head span { font-size: 12px; color: #5a6474; }',
-      '.scpv-row { display: grid; grid-template-columns: 200px 1fr 150px; gap: 20px; align-items: center; padding: 14px 0; border-bottom: 1px solid #edf0f4; }',
-      '.scpv-row:last-child { border-bottom: 0; }',
-      '.scpv-who { display: flex; flex-direction: column; }',
-      '.scpv-who span { font-size: 12px; color: #5a6474; }',
-      '.scpv-mid { display: flex; flex-direction: column; gap: 8px; min-width: 0; }',
-      '.scpv-track { position: relative; height: 10px; border-radius: 5px; background: #edf0f4; }',
-      '.scpv-fill { height: 100%; border-radius: 5px; }',
-      '.scpv-fill--under { background: #d69e24; }',
-      '.scpv-fill--ok { background: #2e8b57; }',
-      '.scpv-fill--over { background: #c0392b; }',
-      '.scpv-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #16202e; }',
-      '.scpv-chips { display: flex; flex-wrap: wrap; gap: 6px; }',
-      '.scpv-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }',
-      '.scpv-chip--dev { background: #dce6fb; color: #1d3f91; }',
-      '.scpv-chip--ba { background: #fce3cc; color: #7a3e0a; }',
-      '.scpv-chip--none { background: #f1f3f6; color: #5a6474; }',
-      '.scpv-badge { justify-self: end; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px; background: #edf0f4; white-space: nowrap; }',
-      '.scpv-badge--under { background: #fff4db; color: #7a5200; }',
-      '.scpv-badge--ok { background: #e6f4ec; color: #14532d; }',
-      '.scpv-badge--over { background: #fdecea; color: #a3201a; }',
-      '.scpv-foot { font-size: 12px; color: #5a6474; margin: 0; }',
-      '.scpv-error { color: #b42318; }',
-      '@media (max-width: 760px) { .scpv-row { grid-template-columns: 1fr; } .scpv-badge { justify-self: start; } }'
+      '/* Reset first, as the Release Impact admin tool: drop the styles the Confluence page gives these elements. */',
+      '#scp-view .scpv, #scp-view .scpv *:where(:not(svg, svg *)), #scp-view .scpv *::before, #scp-view .scpv *::after { all: revert; box-sizing: border-box; }',
+      '#scp-view .scpv *:where(:not(svg, svg *)) { font-family: inherit !important; }',
+      '#scp-view .scpv { font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif !important; color: #16202e; display: flex; flex-direction: column; gap: 16px; max-width: 1136px; }',
+      '#scp-view .scpv-ro { align-self: flex-end; font-size: 12px; color: #5a6474; }',
+      '#scp-view .scpv-sub { color: #5a6474; }',
+      '#scp-view .scpv-pub { color: #5a6474; font-size: 12px; margin-top: -12px; }',
+      '#scp-view .scpv-verdict { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 32px; align-items: center; border: 1px solid; border-radius: 12px; padding: 16px 20px; }',
+      '#scp-view .scpv-verdict--atRisk { background: #fff4db; border-color: #f0d39a; color: #5c3a00; }',
+      '#scp-view .scpv-verdict--notFeasible { background: #fdecea; border-color: #f3b8b1; color: #7a1a12; }',
+      '#scp-view .scpv-verdict--feasible { background: #e6f4ec; border-color: #a9d8bd; color: #14532d; }',
+      '#scp-view .scpv-verdict__text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 420px; }',
+      '#scp-view .scpv-verdict__text b { font-size: 16px; }',
+      '#scp-view .scpv-figs { display: flex; gap: 28px; }',
+      '#scp-view .scpv-figs div { display: flex; flex-direction: column; font-size: 12px; }',
+      '#scp-view .scpv-figs b { font-size: 19px; color: #16202e; }',
+      '#scp-view .scpv-card { background: #fff; border: 1px solid #e3e7ee; border-radius: 12px; padding: 20px 24px; }',
+      '#scp-view .scpv-card__head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #edf0f4; }',
+      '#scp-view .scpv-card__head h2 { margin: 0; font-size: 16px; }',
+      '#scp-view .scpv-card__head span { font-size: 12px; color: #5a6474; }',
+      '#scp-view .scpv-row { display: grid; grid-template-columns: 200px 1fr 150px; gap: 20px; align-items: center; padding: 14px 0; border-bottom: 1px solid #edf0f4; }',
+      '#scp-view .scpv-row:last-child { border-bottom: 0; }',
+      '#scp-view .scpv-who { display: flex; flex-direction: column; }',
+      '#scp-view .scpv-who span { font-size: 12px; color: #5a6474; }',
+      '#scp-view .scpv-mid { display: flex; flex-direction: column; gap: 8px; min-width: 0; }',
+      '#scp-view .scpv-track { position: relative; height: 10px; border-radius: 5px; background: #edf0f4; }',
+      '#scp-view .scpv-fill { height: 100%; border-radius: 5px; }',
+      '#scp-view .scpv-fill--under { background: #d69e24; }',
+      '#scp-view .scpv-fill--ok { background: #2e8b57; }',
+      '#scp-view .scpv-fill--over { background: #c0392b; }',
+      '#scp-view .scpv-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #16202e; }',
+      '#scp-view .scpv-chips { display: flex; flex-wrap: wrap; gap: 6px; }',
+      '#scp-view .scpv-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }',
+      '#scp-view .scpv-chip--dev { background: #dce6fb; color: #1d3f91; }',
+      '#scp-view .scpv-chip--ba { background: #fce3cc; color: #7a3e0a; }',
+      '#scp-view .scpv-chip--none { background: #f1f3f6; color: #5a6474; }',
+      '#scp-view .scpv-badge { justify-self: end; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px; background: #edf0f4; white-space: nowrap; }',
+      '#scp-view .scpv-badge--under { background: #fff4db; color: #7a5200; }',
+      '#scp-view .scpv-badge--ok { background: #e6f4ec; color: #14532d; }',
+      '#scp-view .scpv-badge--over { background: #fdecea; color: #a3201a; }',
+      '#scp-view .scpv-foot { font-size: 12px; color: #5a6474; margin: 0; }',
+      '#scp-view .scpv-error { color: #b42318; }',
+      '@media (max-width: 760px) { #scp-view .scpv-row { grid-template-columns: 1fr; } #scp-view .scpv-badge { justify-self: start; } }'
     ].join('\n') + '\n';
   };
 
@@ -296,6 +299,7 @@
   /** Why Publish cannot run now, or '' (the button's title). */
   publish.blocker = function () {
     var s = S();
+    if (SCP.app.noWrite()) { return SCP.app.NO_WRITE; }
     if (!s.plan) { return 'Open a plan first'; }
     if (!publish.squad()) { return 'Pick the Team (squad) in Config first: it names the published pages'; }
     if (s.planDirty) { return 'Save the plan first: Publish shares the saved plan'; }
@@ -316,10 +320,12 @@
     var title = publish.parentTitle();
     return (stored ? SCP.store.page(stored) : Promise.resolve(null)).then(function (p) {
       if (p) { return p; }
-      if (stored && !window.confirm('The parent page “' + title + '” that earlier plans were published under was deleted.\n\nCreate a new parent page?')) {
-        throw new Error('stopped: the parent page was deleted and no new one was created');
-      }
-      return SCP.store.findPage(here.space, title).then(function (found) {
+      var ask = !stored ? Promise.resolve(true) : ui.confirm({ title: 'Parent page deleted', ok: 'Create a new parent page',
+        message: 'The parent page “' + title + '” that earlier plans were published under was deleted.\n\nCreate a new parent page?' });
+      return ask.then(function (yes) {
+        if (!yes) { throw new Error('stopped: the parent page was deleted and no new one was created'); }
+        return SCP.store.findPage(here.space, title);
+      }).then(function (found) {
         if (found) { return found; }
         var under = here.ancestors.length ? here.ancestors[here.ancestors.length - 1].id : null;
         step('Creating the parent page “' + title + '”…');
@@ -348,12 +354,15 @@
       return SCP.store.findPage(here.space, title).then(function (clash) {
         if (!clash) { return title; }
         var alt = title + ' (plan)';
-        if (!window.confirm('A page called “' + title + '” already exists in this space and was not created by this plan. ' +
-          'It will not be changed.\n\nPublish as “' + alt + '” instead?\n(Cancel to stop and rename that page first.)')) {
-          throw new Error('stopped: a page called “' + title + '” already exists and was not created by this plan. ' +
-            'Rename it, or publish again and accept “' + alt + '”');
-        }
-        return SCP.store.findPage(here.space, alt).then(function (again) {
+        return ui.confirm({ title: 'A page with this title exists', ok: 'Publish as “' + alt + '”',
+          message: 'A page called “' + title + '” already exists in this space and was not created by this plan. ' +
+            'It will not be changed.\n\nPublish as “' + alt + '” instead?\n(Cancel to stop and rename that page first.)' }).then(function (yes) {
+          if (!yes) {
+            throw new Error('stopped: a page called “' + title + '” already exists and was not created by this plan. ' +
+              'Rename it, or publish again and accept “' + alt + '”');
+          }
+          return SCP.store.findPage(here.space, alt);
+        }).then(function (again) {
           if (again) { throw new Error('stopped: “' + alt + '” also exists. Rename one of the two pages first'); }
           return alt;
         });

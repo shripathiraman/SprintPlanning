@@ -45,6 +45,48 @@
     return isFinite(n) ? n : null;
   };
 
+  /**
+   * In-page confirmation, as the Release Impact admin tool's confirm modal,
+   * instead of the browser's own window.confirm (which a user can switch off
+   * for the page, after which every question silently answers No).
+   * opts: { title, message (plain text; a blank line starts a new paragraph),
+   * ok, cancel }. Resolves true for OK, false for Cancel, Esc or close.
+   * Cancel has the focus, so Enter never confirms by accident.
+   */
+  ui.confirm = function (opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var host = document.createElement('div');
+      host.id = 'scp-modal';
+      host.className = 'scp';
+      var paras = String(opts.message || '').split(/\n\s*\n/).map(function (t) {
+        return '<p>' + ui.esc(t.trim()).replace(/\n/g, '<br>') + '</p>';
+      }).join('');
+      host.innerHTML = '<dialog class="scp-confirm" data-test="confirm" aria-labelledby="scp-confirm-title">' +
+        '<h2 class="scp-confirm__title" id="scp-confirm-title">' + ui.esc(opts.title || 'Please confirm') + '</h2>' +
+        '<div class="scp-confirm__msg" data-test="confirm-msg">' + paras + '</div>' +
+        '<div class="scp-confirm__foot">' +
+        '<button type="button" class="scp-btn" data-act="confirm-cancel">' + ui.esc(opts.cancel || 'Cancel') + '</button>' +
+        '<button type="button" class="scp-btn scp-btn--primary" data-act="confirm-ok">' + ui.esc(opts.ok || 'OK') + '</button>' +
+        '</div></dialog>';
+      document.body.appendChild(host);
+      var dlg = host.firstChild;
+      var done = false;
+      function finish(answer) {
+        if (done) { return; }
+        done = true;
+        try { if (dlg.open && dlg.close) { dlg.close(); } } catch (e) { /* already closed */ }
+        host.parentNode.removeChild(host);
+        resolve(answer);
+      }
+      dlg.querySelector('[data-act="confirm-ok"]').addEventListener('click', function () { finish(true); });
+      dlg.querySelector('[data-act="confirm-cancel"]').addEventListener('click', function () { finish(false); });
+      dlg.addEventListener('cancel', function (e) { e.preventDefault(); finish(false); });   // Esc
+      if (typeof dlg.showModal === 'function') { dlg.showModal(); } else { dlg.setAttribute('open', ''); }
+      dlg.querySelector('[data-act="confirm-cancel"]').focus();
+    });
+  };
+
   var LOCK_ICON = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="4.5" width="11" height="8" rx="1.5" fill="none" stroke="currentColor"/></svg>';
 
   /* ------------------------------------------------------------------ */
@@ -71,6 +113,7 @@
     planDirty: false,      // plan changed since last Save plan
     saving: false,
     publishing: false,
+    canWrite: null,        // may this user add attachments here? true / false / null = Confluence did not say
     access: null,          // view restrictions of this page: { restricted, users, groups } or { error } (FR-28)
     root: null
   };
@@ -134,6 +177,17 @@
     return !!(p && p.sprint && (p.sprint.state === 'active' || p.sprint.state === 'closed'));
   };
 
+  /**
+   * The user may not add attachments on this page, so nothing can be saved
+   * or published (checked as the Release Impact admin tool does). Unknown
+   * (null) counts as allowed: the save itself then gives the answer.
+   */
+  app.noWrite = function () {
+    return state.canWrite === false;
+  };
+
+  app.NO_WRITE = 'Read-only - you do not have Add Attachment permission on this page. Ask a page admin for access.';
+
   app.tabsOpen = function () {
     return app.connected() || app.offline();
   };
@@ -192,7 +246,8 @@
     var notice = noticeEl ? noticeEl.outerHTML : '<div class="scp-notice"></div>';
 
     root.innerHTML =
-      '<div class="scp-topbar">' + accessMarker() + '</div>' +
+      '<div class="scp-topbar">' + accessMarker() +
+      (app.noWrite() ? '<span class="scp-nowrite" data-test="no-write" role="status">' + ui.esc(app.NO_WRITE) + '</span>' : '') + '</div>' +
       '<div class="scp-wrap">' +
       '<header class="scp-head"></header>' +
       '<nav class="scp-tabs" role="tablist">' + nav + '</nav>' +
@@ -309,7 +364,8 @@
       '<div class="scp-sub">' + (opts.sub || '&nbsp;') + '</div></div>' +
       '<div class="scp-head__actions">' + (opts.lead || '') +
       (state.planDirty ? '<span class="scp-unsaved" data-test="unsaved">Unsaved changes</span>' : '') +
-      '<button type="button" class="scp-btn" data-act="save-plan"' + (plan && !state.saving && !app.readOnly() ? '' : ' disabled') + '>' +
+      '<button type="button" class="scp-btn" data-act="save-plan"' + (plan && !state.saving && !app.readOnly() && !app.noWrite() ? '' : ' disabled') +
+      (app.noWrite() ? ' title="' + ui.esc(app.NO_WRITE) + '"' : '') + '>' +
       (state.saving ? 'Saving\u2026' : 'Save plan') + '</button>' +
       publishButton() +
       '</div>';
@@ -336,11 +392,12 @@
       app.render();
       if (err.conflict) {
         var who = err.current ? ' by ' + (err.current.by || 'someone') + ' on ' + ui.fmtWhen(err.current.when) : '';
-        if (window.confirm('The plan was changed' + who + ' since you opened it.\n\nSave anyway and overwrite that version?')) {
-          return app.savePlan(true);
-        }
-        app.notice('warn', 'Not saved: the plan changed since you opened it. Reload the page to see the latest version (your changes will be lost).');
-        return false;
+        return ui.confirm({ title: 'The plan was changed', ok: 'Save anyway',
+          message: 'The plan was changed' + who + ' since you opened it.\n\nSave anyway and overwrite that version?' }).then(function (yes) {
+          if (yes) { return app.savePlan(true); }
+          app.notice('warn', 'Not saved: the plan changed since you opened it. Reload the page to see the latest version (your changes will be lost).');
+          return false;
+        });
       }
       app.notice('error', 'Could not save the plan: ' + ui.esc(err.message));
       return false;
@@ -350,6 +407,14 @@
   /* ------------------------------------------------------------------ */
   /* Start-up                                                            */
   /* ------------------------------------------------------------------ */
+
+  /** May this user add attachments here? Disables Save and Publish when not (as the Release Impact admin tool). */
+  app.checkWrite = function () {
+    return SCP.store.canWrite().then(function (yes) {
+      state.canWrite = yes;
+      if (yes === false) { app.render(); }
+    });
+  };
 
   /** Read who may view this page and show it at the top (US-22). */
   app.checkAccess = function () {
@@ -396,6 +461,7 @@
       state.planMeta = plan.meta;
       app.render();
       app.checkAccess();
+      app.checkWrite();
       // Test the Jira connection straight away so Tabs 1-4 open without a click (FR-1).
       return SCP.tabs.config.testConnection().then(function () { return app.checkSprintState(); });
     }).catch(function (err) {

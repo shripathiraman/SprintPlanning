@@ -270,6 +270,35 @@
     return localStorage.getItem(LS_USER) || 'Shripathi R.';
   }
 
+  /* The XSRF header spelling this Confluence accepts: 'no-check' unless a
+     test sets 'nocheck' in scp-mock-xsrf (Atlassian documents both). */
+  function xsrfOk(init) {
+    var want = localStorage.getItem('scp-mock-xsrf') || 'no-check';
+    return !!(init && init.headers && init.headers['X-Atlassian-Token'] === want);
+  }
+
+  /* What the user may do on a page (?expand=operations). scp-mock-operations:
+     unset = may edit; 'view' = read only; 'none' = Confluence does not say. */
+  function operations() {
+    var mode = localStorage.getItem('scp-mock-operations') || 'edit';
+    if (mode === 'none') { return null; }
+    var ops = [{ operation: 'read', targetType: 'page' }];
+    if (mode === 'edit') { ops.push({ operation: 'update', targetType: 'page' }, { operation: 'create', targetType: 'attachment' }); }
+    return ops;
+  }
+
+  /* The planner's own files attached to the planning page, with their
+     versions (scp-mock-code: { name: version }); served by the test server. */
+  var CODE = ['scp-planner.css', 'scp-calc.js', 'scp-jira.js', 'scp-store.js', 'scp-tab-config.js', 'scp-tab-tickets.js',
+    'scp-tab-resources.js', 'scp-tab-capacity.js', 'scp-tab-calendar.js', 'scp-publish.js', 'scp-app.js'];
+  function codeVersions() {
+    var v;
+    try { v = JSON.parse(localStorage.getItem('scp-mock-code') || 'null'); } catch (e) { v = null; }
+    var out = {};
+    CODE.forEach(function (n) { out[n] = (v && v[n]) || 1; });
+    return out;
+  }
+
   function confluence(u, init, path) {
     var method = (init && init.method) || 'GET';
     var p = path || u.pathname;
@@ -286,7 +315,7 @@
     }
     // Create a page.
     if (p === '/rest/api/content' && method === 'POST') {
-      if (!init.headers || init.headers['X-Atlassian-Token'] !== 'no-check') { return text(403, 'XSRF check failed'); }
+      if (!xsrfOk(init)) { return text(403, 'XSRF check failed'); }
       var req = JSON.parse(init.body);
       var dup = Object.keys(all).some(function (k) { return all[k].space === req.space.key && all[k].title === req.title; });
       if (dup) { return json(400, { statusCode: 400, message: 'A page with this title already exists: A page already exists with the title ' + req.title + ' in this space' }); }
@@ -310,9 +339,16 @@
     if ((m = /^\/rest\/api\/content\/(\d+)$/.exec(p))) {
       var pg = all[m[1]];
       if (!pg) { return json(404, { statusCode: 404, message: 'No content found with id: ' + m[1] }); }
-      if (method === 'GET') { return json(200, pageJson(all, pg)); }
+      if (method === 'GET') {
+        var pj = pageJson(all, pg);
+        if (/operations/.test(u.searchParams.get('expand') || '')) {
+          var ops = operations();
+          if (ops) { pj.operations = ops; }
+        }
+        return json(200, pj);
+      }
       if (method === 'PUT') {
-        if (!init.headers || init.headers['X-Atlassian-Token'] !== 'no-check') { return text(403, 'XSRF check failed'); }
+        if (!xsrfOk(init)) { return text(403, 'XSRF check failed'); }
         var upd = JSON.parse(init.body);
         if (!upd.version || upd.version.number !== pg.version + 1) {
           return json(409, { statusCode: 409, message: 'Version must be incremented on update. Current version is: ' + pg.version });
@@ -333,11 +369,20 @@
       if (!a) { return json(404, { statusCode: 404, message: 'No content found with id: ' + pid }); }
       if (method === 'GET') {
         var name = u.searchParams.get('filename');
+        if (!name) {
+          // Every attachment (the loader reads their versions); the planning page also holds the planner's files.
+          var list = Object.keys(a).map(function (k) { return attJson(a[k], pid); });
+          if (pid === PAGE_ID) {
+            var cv = codeVersions();
+            Object.keys(cv).forEach(function (n) { list.push({ id: 'code-' + n, title: n, version: { number: cv[n] } }); });
+          }
+          return json(200, { results: list, size: list.length });
+        }
         var f = a[name];
         return json(200, { results: f ? [attJson(f, pid)] : [], size: f ? 1 : 0 });
       }
       if (method === 'POST') {
-        if (!init.headers || init.headers['X-Atlassian-Token'] !== 'no-check') { return text(403, 'XSRF check failed'); }
+        if (!xsrfOk(init)) { return text(403, 'XSRF check failed'); }
         var file = init.body.get('file');
         var isUpdate = !!m[2];
         return file.text().then(function (body) {
@@ -355,9 +400,10 @@
         });
       }
     }
-    if (method === 'GET' && (m = /^\/download\/attachments\/(\d+)\/(.+)$/.exec(p))) {
+    if ((method === 'GET' || method === 'HEAD') && (m = /^\/download\/attachments\/(\d+)\/(.+)$/.exec(p))) {
       var aa = attsOf(all, m[1]) || {};
       var g = aa[decodeURIComponent(m[2])];
+      if (!g && m[1] === PAGE_ID) { return realFetch(u.href, init); }   // the planner's own files: the test server
       return g ? text(200, g.body, { 'Content-Type': g.mediaType || 'application/json' }) : text(404, 'no file');
     }
     return text(404, 'Mock Confluence has no route for ' + method + ' ' + p);

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!--
+  tests/harness-confluence.html — TEST ONLY. As harness.html, but the planner's
+  files are loaded the way Confluence serves them: as attachments of the page
+  (/download/attachments/900001/<file>), with their versions. Used to test the
+  loader (versions, settings block, error messages).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SCP test harness - files as attachments</title>
+  <meta name="ajs-context-path" content="">
+  <meta name="ajs-page-id" content="900001">
+  <meta name="ajs-current-user-fullname" content="Shripathi Raman Radhakrishnan">
+  <script src="mock-env.js"></script>
+  <style>body { margin: 0; padding: 16px; background: #fff; }</style>
+</head>
+<body>
+  <div id="macro"></div>
+  <script>
+    /* Insert the real macro body and run its script, as Confluence's HTML macro does. */
+    fetch('../scp-macro.html').then(function (r) { return r.text(); }).then(function (html) {
+      var host = document.getElementById('macro');
+      host.innerHTML = html;
+      /* ?settings=... stands in for the user editing the macro's settings block. */
+      var edited = new URLSearchParams(location.search).get('settings');
+      if (edited !== null) { host.querySelector('#scp-settings').textContent = edited; }
+      host.querySelectorAll('script:not([type="application/json"])').forEach(function (old) {
+        var s = document.createElement('script');
+        s.textContent = old.textContent;
+        old.replaceWith(s);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -11,7 +11,9 @@ import functools
 import http.server
 import json
 import os
+import re
 import socketserver
+import urllib.parse
 import sys
 import threading
 import traceback
@@ -32,11 +34,55 @@ def test(name):
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
+    """Serves the app folder. /download/attachments/<page>/<name> plays Confluence serving
+    the planner's files as page attachments; SERVE (set through /__serve/<mode>) can make it
+    answer 404 for one file ("missing:<name>") or refuse code like a locked-down Confluence
+    ("nosniff": .js as application/octet-stream with X-Content-Type-Options: nosniff)."""
+    SERVE = {"mode": "ok"}
+
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=APP_DIR, **kw)
 
     def log_message(self, *a):
         pass
+
+    def _attachment(self, with_body):
+        m = re.match(r"^/download/attachments/\d+/([^?]+)", self.path)
+        if not m:
+            return False
+        name = urllib.parse.unquote(m.group(1))
+        path = os.path.join(APP_DIR, os.path.basename(name))
+        mode = Quiet.SERVE["mode"]
+        if not os.path.isfile(path) or mode == "missing:" + name:
+            self.send_response(404)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            return True
+        body = open(path, "rb").read()
+        ctype = "text/css" if name.endswith(".css") else "application/javascript"
+        self.send_response(200)
+        if mode == "nosniff" and name.endswith(".js"):
+            ctype = "application/octet-stream"
+            self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if with_body:
+            self.wfile.write(body)
+        return True
+
+    def do_GET(self):
+        if self.path.startswith("/__serve/"):
+            Quiet.SERVE["mode"] = urllib.parse.unquote(self.path[len("/__serve/"):])
+            self.send_response(204)
+            self.end_headers()
+            return
+        if not self._attachment(True):
+            super().do_GET()
+
+    def do_HEAD(self):
+        if not self._attachment(False):
+            super().do_HEAD()
 
 
 def _serve():
@@ -56,7 +102,8 @@ class App:
         self.page = self.ctx.new_page()
         self.errors = []
         self.page.on("pageerror", lambda e: self.errors.append(str(e)))
-        self.dialogs = []
+        # The planner asks in an in-page dialog; a browser pop-up (window.confirm) is a bug.
+        self.page.on("dialog", lambda d: (self.errors.append("browser pop-up: " + d.message), d.dismiss()))
 
     def open(self, scenario="ok", attachments=None, fixtures=None, user=None, wait_connected=True):
         """Fresh start: clear the fake Confluence, set the scenario, open the page."""
@@ -74,8 +121,12 @@ class App:
         self.reload(wait_connected)
         return self
 
-    def reload(self, wait_connected=True):
-        self.page.goto(self.base + "/tests/harness.html")
+    def serve(self, mode):
+        """How the test server answers /download/attachments/: 'ok', 'nosniff' or 'missing:<file>'."""
+        self.page.request.get(self.base + "/__serve/" + urllib.parse.quote(mode))
+
+    def reload(self, wait_connected=True, page="harness.html"):
+        self.page.goto(self.base + "/tests/" + page)
         self.page.wait_for_selector("[data-test=conn-status]", timeout=8000)
         if wait_connected:
             self.page.wait_for_selector("[data-test=conn-status] >> text=Connected as", timeout=8000)
@@ -110,10 +161,24 @@ class App:
             o[n] = v; localStorage.setItem('scp-mock-fixture-overrides', JSON.stringify(o)); }""", [name, value])
 
     def on_dialog(self, accept):
-        def handler(d):
-            self.dialogs.append(d.message)
-            d.accept() if accept else d.dismiss()
-        self.page.once("dialog", handler)
+        """Answer the next in-page confirmation (OK or Cancel) on this page; its text lands in app.dialogs."""
+        self.page.evaluate("""accept => {
+            window.__scpDialogs = [];
+            const obs = new MutationObserver(() => {
+                const d = document.querySelector('dialog[data-test=confirm][open]');
+                if (!d || d.dataset.answered) return;
+                d.dataset.answered = '1';
+                obs.disconnect();
+                window.__scpDialogs.push(d.querySelector('[data-test=confirm-msg]').innerText);
+                setTimeout(() => d.querySelector(accept ? '[data-act=confirm-ok]' : '[data-act=confirm-cancel]').click(), 0);
+            });
+            obs.observe(document.body, { subtree: true, childList: true, attributes: true });
+        }""", accept)
+
+    @property
+    def dialogs(self):
+        """Texts of the in-page confirmations answered since the last on_dialog()."""
+        return self.page.evaluate("() => window.__scpDialogs || []")
 
     def close(self):
         self.ctx.close()
@@ -134,6 +199,7 @@ def run(only=None):
             if only and only not in name:
                 continue
             app = App(browser, base)
+            Quiet.SERVE["mode"] = "ok"
             try:
                 fn(app)
                 check(not app.errors, "page errors: %s" % app.errors)

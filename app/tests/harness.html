@@ -14,7 +14,6 @@
   <script src="mock-env.js"></script>
   <script>
     window.SCP_BASE_URL = '../';
-    window.SCP = { settings: { jiraServer: '' } };
   </script>
   <style>body { margin: 0; padding: 16px; background: #fff; }</style>
 </head>
@@ -25,7 +24,7 @@
     fetch('../scp-macro.html').then(function (r) { return r.text(); }).then(function (html) {
       var host = document.getElementById('macro');
       host.innerHTML = html;
-      host.querySelectorAll('script').forEach(function (old) {
+      host.querySelectorAll('script:not([type="application/json"])').forEach(function (old) {
         var s = document.createElement('script');
         s.textContent = old.textContent;
         old.replaceWith(s);

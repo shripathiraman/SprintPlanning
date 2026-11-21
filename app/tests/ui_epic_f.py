@@ -140,10 +140,10 @@ def _(app):
         a['scp-plan.json'].version += 1; a['scp-plan.json'].by = 'Product Owner';
         localStorage.setItem('scp-mock-attachments', JSON.stringify(a)); }""")
     leave(app, "lorenzo", "2027-01-11")
-    msgs = []
-    app.page.once("dialog", lambda d: (msgs.append(d.message), d.dismiss()))
+    app.on_dialog(accept=False)
     app.page.click("[data-act=save-plan]")
     app.settle(300)
+    msgs = app.dialogs
     check(msgs and "changed by Product Owner" in msgs[0], msgs)
     check("Not saved" in app.text(".scp-notice") and app.state("S.planDirty") is True, app.text(".scp-notice"))
     check(app.attachment("scp-plan.json")["leave"].get("lorenzo") is None, "PO's version not overwritten")
@@ -308,15 +308,15 @@ def _(app):
         '900001': { id: '900001', title: 'Sprint planning — Squad Orion', space: 'DD', parentId: '800001', body: '', version: 3, atts: null } };
         P['900777'] = { id: '900777', title: 'Sprint 26 - Squad Orion', space: 'DD', parentId: '800001', body: '<p>Retro notes</p>', version: 4, atts: {} };
         localStorage.setItem('scp-mock-pages', JSON.stringify(P)); }""")
-    msgs = []
-    app.page.once("dialog", lambda d: (msgs.append(d.message), d.dismiss()))
+    app.on_dialog(accept=False)
     publish(app)
+    msgs = app.dialogs
     check(msgs and "already exists" in msgs[0] and "Sprint 26 - Squad Orion (plan)" in msgs[0], msgs)
     check("Publish stopped" in app.text(".scp-notice") and "Sprint 26 - Squad Orion" in app.text(".scp-notice"), app.text(".scp-notice"))
     other = pages(app)["900777"]
     check(other["body"] == "<p>Retro notes</p>" and other["version"] == 4 and other["atts"] == {}, "untouched")
     check(page_by_title(app, "Sprint 26 - Squad Orion (plan)") == [], "nothing created")
-    app.page.once("dialog", lambda d: d.accept())
+    app.on_dialog(accept=True)
     publish(app)
     made = page_by_title(app, "Sprint 26 - Squad Orion (plan)")
     check(len(made) == 1 and pages(app)["900777"]["version"] == 4, made)
@@ -334,9 +334,9 @@ def _(app):
     app.page.evaluate("""id => { const P = JSON.parse(localStorage.getItem('scp-mock-pages'));
         Object.keys(P).forEach(k => { if (k === id || P[k].parentId === id) delete P[k]; });
         localStorage.setItem('scp-mock-pages', JSON.stringify(P)); }""", parent["id"])
-    msgs = []
-    app.page.once("dialog", lambda d: (msgs.append(d.message), d.accept()))
+    app.on_dialog(accept=True)
     publish(app)
+    msgs = app.dialogs
     check(msgs and "was deleted" in msgs[0], msgs)
     check(len(page_by_title(app, "Sprint plans - Squad Orion")) == 1 and len(page_by_title(app, "Sprint 26 - Squad Orion")) == 1, "re-created")
 

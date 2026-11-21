@@ -36,6 +36,31 @@
     return store.contextPath() + '/rest/api/content/' + encodeURIComponent(pageId || store.pageId()) + path;
   }
 
+  /**
+   * Atlassian's own documentation spells the XSRF header both "nocheck" and
+   * "no-check", and the wrong one makes every write fail with 403 (as in the
+   * Release Impact admin tool). Send one, and on a 403 retry once with the
+   * other: a 403 means nothing was written, so the retry is safe. The
+   * spelling that works is remembered for the rest of the visit.
+   */
+  var XSRF = ['no-check', 'nocheck'];
+
+  /** fetch() for a write: adds the XSRF header, retrying once with the other spelling on 403. */
+  store.write = function (url, init) {
+    function attempt(i) {
+      var headers = {};
+      Object.keys(init.headers || {}).forEach(function (k) { headers[k] = init.headers[k]; });
+      headers['X-Atlassian-Token'] = XSRF[i];
+      var opts = { method: init.method || 'POST', credentials: 'same-origin', cache: 'no-store', headers: headers, body: init.body };
+      return fetch(url, opts).then(function (res) {
+        if (res.status === 403 && i + 1 < XSRF.length) { return attempt(i + 1); }
+        if (res.status !== 403 && i > 0) { XSRF = [XSRF[i], XSRF[0]]; }   // remember the spelling that worked
+        return res;
+      });
+    }
+    return attempt(0);
+  };
+
   function check(res, what) {
     if (!res.ok) {
       var err = new Error(what + ' failed (HTTP ' + res.status + ')');
@@ -105,10 +130,9 @@
       form.append('minorEdit', 'true');
       form.append('comment', opts.comment || 'Saved by Sprint Capacity Planner');
       var path = current ? '/child/attachment/' + encodeURIComponent(current.id) + '/data' : '/child/attachment';
-      return fetch(api(path), {
+      return store.write(api(path), {
         method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'X-Atlassian-Token': 'no-check', 'Accept': 'application/json' },
+        headers: { 'Accept': 'application/json' },
         body: form
       }).then(function (res) {
         return check(res, 'Saving ' + filename).json();
@@ -128,12 +152,16 @@
   /** JSON request to the Confluence REST API; writes carry the XSRF header. */
   function request(method, path, body) {
     var init = { method: method, credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } };
+    var url = store.contextPath() + path;
+    var sent;
     if (body !== undefined) {
       init.headers['Content-Type'] = 'application/json';
-      init.headers['X-Atlassian-Token'] = 'no-check';
       init.body = JSON.stringify(body);
+      sent = store.write(url, init);
+    } else {
+      sent = fetch(url, init);
     }
-    return fetch(store.contextPath() + path, init).then(function (res) {
+    return sent.then(function (res) {
       return res.text().then(function (t) {
         var data = null;
         try { data = t ? JSON.parse(t) : null; } catch (e) { data = null; }
@@ -196,9 +224,8 @@
       form.append('minorEdit', 'true');
       form.append('comment', 'Published by Sprint Capacity Planner');
       var path = current ? '/child/attachment/' + encodeURIComponent(current.id) + '/data' : '/child/attachment';
-      return fetch(api(path, pageId), {
-        method: 'POST', credentials: 'same-origin',
-        headers: { 'X-Atlassian-Token': 'no-check', 'Accept': 'application/json' }, body: form
+      return store.write(api(path, pageId), {
+        method: 'POST', headers: { 'Accept': 'application/json' }, body: form
       }).then(function (res) { return check(res, 'Uploading ' + filename); });
     });
   };
@@ -215,5 +242,29 @@
       var groups = ((res.group && res.group.results) || []).map(function (x) { return x.name; });
       return { restricted: users.length + groups.length > 0, users: users, groups: groups };
     });
+  };
+  /**
+   * Can the signed-in user add attachments on this page? Resolves true, false,
+   * or null when Confluence does not say (it may not expand "operations").
+   * As in the Release Impact admin tool: null leaves the buttons enabled and
+   * lets the save itself answer, since a disabled button nobody can explain
+   * is worse than a clear refusal.
+   */
+  store.canWrite = function () {
+    return fetch(store.contextPath() + '/rest/api/content/' + encodeURIComponent(store.pageId()) + '?expand=operations', {
+      credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' }
+    }).then(function (res) {
+      if (!res.ok) { return null; }
+      return res.json().then(function (body) {
+        var ops = body && body.operations;
+        if (!Array.isArray(ops) || !ops.length) { return null; }
+        return ops.some(function (o) {
+          var name = String((o && o.operation) || '').toLowerCase();
+          var target = String((o && o.targetType) || '').toLowerCase();
+          return (name === 'update' || name === 'create' || name === 'administer') &&
+            (target === 'page' || target === 'attachment' || target === 'blogpost');
+        });
+      });
+    }, function () { return null; });
   };
 }(window.SCP = window.SCP || {}));

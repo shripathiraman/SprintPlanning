@@ -2,25 +2,65 @@
   scp-macro.html — Sprint Capacity Planner · HTML macro body for the planning page
 
   Paste this into the HTML macro on the restricted planning page ("Sprint planning — <Squad>").
-  The CSS and JS are attachments of this same page; the loader below reads the
-  page ID that Confluence prints in the page, and Jira is found through
-  Confluence's own link to Jira, so nothing here needs editing.
+  The plan (scp-plan.json) and config (scp-config.json) are always attachments of THIS page.
+
+  SETTINGS: edit only the scp-settings block just below.
+    jiraServer   which Jira to use: "" = the Jira this Confluence links to by
+                 default; otherwise the name, address or link id of another
+                 Jira linked to this Confluence
+    page         "" = this page holds the planner's files (scp-planner.css and
+                 the scp-*.js files). Otherwise the page that holds them: its
+                 id "123456", or its address ".../pages/viewpage.action?pageId=123456",
+                 ".../pages/123456/Title" or ".../display/SPACE/Title"
+  Keep the quotes and commas, and no comma after the last item.
 -->
+<script type="application/json" id="scp-settings">
+{
+  "jiraServer": "",
+  "page": ""
+}
+</script>
 <div id="scp-root"></div>
 <script>
   (function () {
     'use strict';
+    /* Loader, built the way the Release Impact admin macro is:
+       1. read and check the settings block,
+       2. work out which page holds the files,
+       3. stamp each file's address with its attachment version, so a replaced
+          file is not served from the browser cache,
+       4. load the files in order; if one fails, say why (missing, or refused
+          by Confluence as code). */
 
-    /* ---- Optional setting ---------------------------------------------
-       jiraServer: "" = the Jira this Confluence links to by default (found
-       automatically, as in the Release Impact admin tool). Set it only to use
-       another linked Jira: its name, address or link id. */
+    var root = document.getElementById('scp-root');
+
+    function esc(v) {
+      return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function fail(lines) {
+      root.innerHTML = '<div data-test="load-error" style="margin:16px 0;padding:14px 18px;border:1px solid #fda29b;background:#fef3f2;' +
+        'color:#912018;border-radius:10px;font:13px/1.6 Arial,sans-serif"><b>Sprint Capacity Planner could not start.</b><br>' +
+        lines.map(function (l) { return '<span style="font-family:monospace">' + l + '</span>'; }).join('<br>') + '</div>';
+    }
+    function meta(name) {
+      var m = document.querySelector('meta[name="' + name + '"]');
+      return m ? m.getAttribute('content') || '' : '';
+    }
+
+    /* ---- 1. Read the settings block ---- */
+    var cfg = {};
+    var el = document.getElementById('scp-settings');
+    if (el) {
+      try { cfg = JSON.parse(el.textContent || '{}') || {}; } catch (e) {
+        fail(['The settings block (scp-settings) at the top of the macro is not valid JSON.', esc(e.message),
+          'Check for a missing comma or quote, or a comma after the last item.']);
+        return;
+      }
+    }
     window.SCP = window.SCP || {};
-    window.SCP.settings = window.SCP.settings || {
-      jiraServer: ''
-    };
+    window.SCP.settings = { jiraServer: String(cfg.jiraServer || '').trim() };
 
-    /* Attachments of this page, in load order (PRD File Structure). */
+    /* Attachments of the files page, in load order (PRD File Structure). */
     var FILES = [
       'scp-planner.css',
       'scp-calc.js',
@@ -35,39 +75,103 @@
       'scp-app.js'
     ];
 
-    function meta(name) {
-      var m = document.querySelector('meta[name="' + name + '"]');
-      return m ? m.getAttribute('content') || '' : '';
+    var CTX = meta('ajs-context-path');
+    var HOST = meta('ajs-page-id');
+
+    /* ---- 2. Which page holds the files ---- */
+    function parsePage(raw) {
+      raw = String(raw || '').trim();
+      if (!raw) { return { id: null }; }
+      if (/^\d+$/.test(raw)) { return { id: raw }; }
+      var m = raw.match(/[?&]pageId=(\d+)/);
+      if (m) { return { id: m[1] }; }
+      m = raw.match(/\/pages\/(\d+)(?:[\/?#]|$)/);
+      if (m) { return { id: m[1] }; }
+      m = raw.match(/\/display\/([^\/?#]+)\/([^\/?#]+)/);
+      if (m) { return { space: decodeURIComponent(m[1]), title: decodeURIComponent(m[2].replace(/\+/g, ' ')) }; }
+      return { bad: true };
+    }
+    function resolvePage(raw) {
+      var p = parsePage(raw);
+      if (p.bad) { return Promise.reject(new Error('page is not a page id or a Confluence page address: ' + raw)); }
+      if (p.id || !p.space) { return Promise.resolve(p.id || HOST); }
+      return fetch(CTX + '/rest/api/content?spaceKey=' + encodeURIComponent(p.space) + '&title=' + encodeURIComponent(p.title) + '&limit=1',
+        { headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store' })
+        .then(function (r) { if (!r.ok) { throw new Error('page lookup failed (HTTP ' + r.status + ')'); } return r.json(); })
+        .then(function (b) {
+          if (b && b.results && b.results[0]) { return String(b.results[0].id); }
+          throw new Error('no page titled "' + p.title + '" in space ' + p.space);
+        });
     }
 
-    var base = window.SCP_BASE_URL ||
-      meta('ajs-context-path') + '/download/attachments/' + meta('ajs-page-id') + '/';
+    var PID = null, VER = {}, BASE = window.SCP_BASE_URL || null;   // SCP_BASE_URL: test pages and the dummy only
+    window.SCP.loader = { urls: [] };
+    function url(name) {
+      if (BASE) { return BASE + name; }
+      return CTX + '/download/attachments/' + PID + '/' + encodeURIComponent(name) + '?api=v2' + (VER[name] ? '&v=' + VER[name] : '');
+    }
+
+    /* ---- 4. Why a file did not load: the headers Confluence returned ---- */
+    function explain(name) {
+      var u = url(name);
+      return fetch(u, { method: 'HEAD', credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
+        return { status: r.status, type: r.headers.get('content-type') || '(none)', sniff: r.headers.get('x-content-type-options') || '(none)' };
+      }, function (e) {
+        return { status: 0, type: '(request failed: ' + e + ')', sniff: '(none)' };
+      }).then(function (i) {
+        var why = i.status === 404 ? 'The file is not attached to page ' + esc(PID) + ' under that name - attach it, or check "page" in the settings block.'
+          : i.status === 401 || i.status === 403 ? 'You may not view the attachments of page ' + esc(PID) + '.'
+          : 'Confluence sent the file but the browser refused it: with this Content-Type and nosniff, this Confluence will not serve attachments as code. Ask your Confluence admin.';
+        fail([esc(name) + ' was NOT loaded.',
+          '&nbsp;&nbsp;URL: ' + esc(u),
+          '&nbsp;&nbsp;HTTP ' + i.status + ' | Content-Type: ' + esc(i.type) + ' | X-Content-Type-Options: ' + esc(i.sniff),
+          '', why]);
+      });
+    }
 
     /* Load one file after the other so scripts run in the listed order. */
     function load(i) {
       if (i >= FILES.length) {
-        window.SCP.app.start(document.getElementById('scp-root'));
+        window.SCP.app.start(root);
         return;
       }
       var name = FILES[i];
-      var url = base + name + (base.indexOf('/download/attachments/') !== -1 ? '?api=v2' : '');
-      var el;
+      var u = url(name);
+      window.SCP.loader.urls.push(u);
+      var tag;
       if (/\.css$/.test(name)) {
-        el = document.createElement('link');
-        el.rel = 'stylesheet';
-        el.href = url;
+        tag = document.createElement('link');
+        tag.rel = 'stylesheet';
+        tag.href = u;
       } else {
-        el = document.createElement('script');
-        el.src = url;
+        tag = document.createElement('script');
+        tag.src = u;
       }
-      el.onload = function () { load(i + 1); };
-      el.onerror = function () {
-        document.getElementById('scp-root').innerHTML =
-          '<p style="color:#b42318">Sprint Capacity Planner: could not load the attachment ' + name +
-          ' from this page. Check that every scp-* file is attached here.</p>';
-      };
-      document.head.appendChild(el);
+      tag.onload = function () { load(i + 1); };
+      tag.onerror = function () { explain(name); };
+      document.head.appendChild(tag);
     }
-    load(0);
+
+    resolvePage(cfg.page).then(function (pid) {
+      PID = pid;
+      if (!PID && !BASE) {
+        fail(['No Confluence page id found.', 'This macro has to run inside a Confluence page, or the settings block must name a page.']);
+        return;
+      }
+      if (BASE) { load(0); return; }
+      /* ---- 3. Attachment versions, so a replaced file is fetched fresh ---- */
+      fetch(CTX + '/rest/api/content/' + PID + '/child/attachment?expand=version&limit=100',
+        { headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (b) {
+          if (b && b.results) {
+            b.results.forEach(function (a) { if (a && a.title && a.version) { VER[a.title] = a.version.number; } });
+          }
+        }, function () { /* no versions: load without them */ })
+        .then(function () { load(0); });
+    }, function (e) {
+      fail(['Could not work out which page holds the planner files.', esc(e.message),
+        'Use the page id (the number in ...pageId=12345) in the settings block.']);
+    });
   }());
 </script>

@@ -67,51 +67,57 @@
     var p = plan();
     if (!s) { return Promise.resolve(false); }
     if (p && String(p.sprint.id) === String(s.id)) { return Promise.resolve(false); }
-    if (p && p.status === 'open') {
-      var ok = window.confirm('A plan for ' + p.sprint.name + ' is open on this page. One page holds one open plan.\n\n' +
+    var ask = !(p && p.status === 'open') ? Promise.resolve(true) : ui.confirm({ title: 'Close the ' + p.sprint.name + ' plan?',
+      ok: 'Close it and plan ' + s.name,
+      message: 'A plan for ' + p.sprint.name + ' is open on this page. One page holds one open plan.\n\n' +
         'Close the ' + p.sprint.name + ' plan and start planning ' + s.name + '?\n' +
-        'Its resources, leave and card placements are replaced when you click Save plan.');
+        'Its resources, leave and card placements are replaced when you click Save plan.' });
+    return ask.then(function (ok) {
       if (!ok) {
         SCP.app.render();
+        return false;
+      }
+      return start();
+    });
+
+    function start() {
+      var miss = missingConfig();
+      if (miss.length) {
+        SCP.app.notice('warn', 'Set ' + ui.esc(miss.join(', ')) + ' in Config first.');
         return Promise.resolve(false);
       }
-    }
-    var miss = missingConfig();
-    if (miss.length) {
-      SCP.app.notice('warn', 'Set ' + ui.esc(miss.join(', ')) + ' in Config first.');
-      return Promise.resolve(false);
-    }
-    view.busy = true;
-    SCP.app.render();
-    var prev = p;
-    return SCP.jira.sprintIssues(s.id, cfg()).then(function (issues) {
-      S().plan = {
-        schemaVersion: 1,
-        status: 'open',
-        sprint: toSprint(s),
-        loadedAt: new Date().toISOString(),
-        changesSince: null,
-        changes: null,
-        tickets: issues.map(function (i) { return SCP.jira.toTicket(i, cfg()); }),
-        resources: [],
-        leave: {},
-        oneOffs: [],
-        cards: []
-      };
-      // Resources pre-filled from the tickets and the last plan's team (US-12 AC-1).
-      if (SCP.tabs.resources) { SCP.tabs.resources.sync(S().plan, prev); }
-      view.busy = false;
-      view.selected = null;
-      SCP.app.markDirty();
+      view.busy = true;
       SCP.app.render();
-      SCP.app.notice('info', 'Plan opened for ' + ui.esc(s.name) + '. Click Save plan to keep it on this page.');
-      return true;
-    }).catch(function (err) {
-      view.busy = false;
-      SCP.app.render();
-      SCP.app.notice('error', 'Could not load the tickets of ' + ui.esc(s.name) + ': ' + ui.esc(err.message));
-      return false;
-    });
+      var prev = p;
+      return SCP.jira.sprintIssues(s.id, cfg()).then(function (issues) {
+        S().plan = {
+          schemaVersion: 1,
+          status: 'open',
+          sprint: toSprint(s),
+          loadedAt: new Date().toISOString(),
+          changesSince: null,
+          changes: null,
+          tickets: issues.map(function (i) { return SCP.jira.toTicket(i, cfg()); }),
+          resources: [],
+          leave: {},
+          oneOffs: [],
+          cards: []
+        };
+        // Resources pre-filled from the tickets and the last plan's team (US-12 AC-1).
+        if (SCP.tabs.resources) { SCP.tabs.resources.sync(S().plan, prev); }
+        view.busy = false;
+        view.selected = null;
+        SCP.app.markDirty();
+        SCP.app.render();
+        SCP.app.notice('info', 'Plan opened for ' + ui.esc(s.name) + '. Click Save plan to keep it on this page.');
+        return true;
+      }).catch(function (err) {
+        view.busy = false;
+        SCP.app.render();
+        SCP.app.notice('error', 'Could not load the tickets of ' + ui.esc(s.name) + ': ' + ui.esc(err.message));
+        return false;
+      });
+    }
   };
 
   /* ------------------------------------------------------------------ */

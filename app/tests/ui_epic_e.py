@@ -217,13 +217,15 @@ def _(app):
 @test("US-17 AC-4 A Dev card dropped on a BA-only resource asks first; Cancel keeps it, OK moves it")
 def _(app):
     design_sprint(app)
-    msgs = []
-    app.page.once("dialog", lambda d: (msgs.append(d.message), d.dismiss()))
+    app.on_dialog(accept=False)
     drag(app, "NWD-427|dev", "gabriela", 14)
+    app.settle(200)
+    msgs = app.dialogs
     check(msgs and "Dev card" in msgs[0] and "Gabriela is BA only" in msgs[0], msgs)
     check(lane_of(app, "NWD-427|dev") == "marc", "Cancel keeps it on Marc")
-    app.page.once("dialog", lambda d: d.accept())
+    app.on_dialog(accept=True)
     drag(app, "NWD-427|dev", "gabriela", 14)
+    app.settle(200)
     check(lane_of(app, "NWD-427|dev") == "gabriela", "OK moves it")
 
 

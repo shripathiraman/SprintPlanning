@@ -352,8 +352,9 @@
 
   /**
    * Move a card to a person (or Unassigned with null) starting at `start` days.
-   * A Dev card dropped on a BA-only resource asks first (US-17 AC-4).
-   * Returns true when the move was made.
+   * A Dev card dropped on a BA-only resource asks first (US-17 AC-4): the
+   * move is then made only when the user clicks OK in that dialog.
+   * Returns true when the move was made now.
    */
   tab.move = function (id, person, start) {
     var p = plan();
@@ -364,16 +365,24 @@
     var target = person ? resourceOf(person) : null;
     if (person && !target) { return false; }
     if (target && k.role === 'dev' && target.role === 'BA') {
-      if (!window.confirm(k.key + ' is a Dev card and ' + target.name + ' is BA only. Move it to ' + target.name + ' anyway?')) { return false; }
+      ui.confirm({ title: 'Move a Dev card to a BA?', ok: 'Move it',
+        message: k.key + ' is a Dev card and ' + target.name + ' is BA only. Move it to ' + target.name + ' anyway?' }).then(function (yes) {
+        if (yes) { place(p, k, person, start); }
+      });
+      return false;
     }
+    place(p, k, person, start);
+    return true;
+  };
+
+  function place(p, k, person, start) {
     if (!Array.isArray(p.cards)) { p.cards = []; }
     p.cards = p.cards.filter(function (c) { return !(c.key === k.key && c.role === k.role); });
     p.cards.push({ key: k.key, role: k.role, person: person || null, start: person ? calc.snapHalf(start) : null });
     view.without = null;
     SCP.app.markDirty();
     SCP.app.render();
-    return true;
-  };
+  }
 
   /** Arrow keys on a card: left / right by half a day, up / down to the next row (US-17 AC-5). */
   function keyMove(btn, key) {

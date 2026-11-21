@@ -2,7 +2,7 @@
 
 Nov 19, 2026 · @Shripathi Raman R
 
-Version 0.5 (20 Nov 2026: US-21 to US-23 notes for PRD v0.8, Epic F as built). Version 0.4 (20 Nov 2026: US-13 updated for PRD v0.7, half-day leave is the morning or the afternoon). Version 0.3 (20 Nov 2026: US-09 notes the SM convention for one person doing both Dev and BA). Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.8](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
+Version 0.6 (21 Nov 2026: US-01 and US-20 updated for PRD v0.9, Confluence safeguards from the Release Impact admin tool; sample ticket keys now NWD, as in the dummy). Version 0.5 (20 Nov 2026: US-21 to US-23 notes for PRD v0.8, Epic F as built). Version 0.4 (20 Nov 2026: US-13 updated for PRD v0.7, half-day leave is the morning or the afternoon). Version 0.3 (20 Nov 2026: US-09 notes the SM convention for one person doing both Dev and BA). Version 0.2 (19 Nov 2026: US-01 and US-02 updated for PRD v0.6, typed project key with Fetch from Jira). Version 0.1 was reviewed by 3 Scrum Masters. 24 user stories cover every functional requirement in [PRD v0.9](<PRD Sprint Capacity Planner (Confluence + Jira) v0.5.md>), grouped in six epics that follow the tabs. Each epic links to its screen in the [screens folder](screens/). Acceptance criteria are Given/When/Then; the scoring at the end is a first pass to be replaced by your team's and the vendor's numbers.
 
 ## Story index
 
@@ -64,7 +64,7 @@ Screen design: [Config](screens/screen-0-config.png) — US-01 to US-06.
 
 **Design notes.** Green status box with the user's name; red box with the reason (see the Config screen on the design canvas).
 
-**Technical notes.** `GET <ctx>/rest/jiraanywhere/1.0/servers` to find the linked Jira, then `GET /rest/api/2/myself` through the link proxy; code in `scp-jira.js`. Runs on its own when the page loads.
+**Technical notes.** `GET <ctx>/rest/jiraanywhere/1.0/servers` to find the linked Jira, then `GET /rest/api/2/myself` through the link proxy; code in `scp-jira.js`. Runs on its own when the page loads. To use a Jira other than the default link, set `jiraServer` (its name, address or link id) in the macro's settings block (`scp-settings`, PRD v0.9 File Structure); a name that matches no link gives its own message ("No Jira link called …"). The same block's `page` names the page holding the planner's files (blank = this page). The loader adds each file's attachment version to its address, so a replaced file is never served from the browser cache, and if a file does not load it names the file, the HTTP status, Content-Type and X-Content-Type-Options and says what to do; a typo in the settings block stops the planner with a message saying the block is not valid JSON.
 
 **Dependencies.** Confluence linked to Jira and the link authorised for planner users (Confluence admin, in place).
 
@@ -82,11 +82,11 @@ Screen design: [Config](screens/screen-0-config.png) — US-01 to US-06.
 
 **Acceptance criteria**
 
-- **AC-1 Fetch** — **Given** I am connected and type PCAP, **when** I click Fetch from Jira, **then** its boards (a scrum board pre-selected), Team values, issue types and sprints load.
+- **AC-1 Fetch** — **Given** I am connected and type NWD, **when** I click Fetch from Jira, **then** its boards (a scrum board pre-selected), Team values, issue types and sprints load.
 - **AC-2 Sprint details** — **Given** sprints have loaded, **when** I view them, **then** each shows name, state (active, future, closed), start and end date.
 - **AC-3 Issue types** — **Given** I untick Bug, **when** Tab 1 loads, **then** no Bug tickets appear.
 - **AC-4 Not found or no permission** — **Given** the key does not exist or I lack Browse Projects on it, **when** I click Fetch from Jira, **then** the message names the key and says it was not found or I lack Browse Projects on it, and nothing loads.
-- **AC-5 Key edited** — **Given** I fetched PCAP, **when** I change the key without fetching again, **then** board, Team, issue types and sprints are marked stale and Save config is blocked until I fetch.
+- **AC-5 Key edited** — **Given** I fetched NWD, **when** I change the key without fetching again, **then** board, Team, issue types and sprints are marked stale and Save config is blocked until I fetch.
 - **AC-6 Page load** — **Given** a key is saved in the config, **when** the page loads, **then** the connection test and the fetch run without a click.
 
 **Design notes.** Project key field and Fetch from Jira button at the top of Project & team, then Board and Team (squad) dropdowns (Config screen on the design canvas).
@@ -180,7 +180,7 @@ Screen design: [Config](screens/screen-0-config.png) — US-01 to US-06.
 
 Tab 1 turns the sprint's Jira tickets into man-days per role. Nothing here writes to Jira.
 
-Screen design: [Tab 1 · Sprint Tickets](screens/screen-1-sprint-tickets.png) — sprint header (US-07), ticket table (US-08), flag panel (US-09), Contributor dropdown on PCAP-418 (US-10), change list and Reload (US-11).
+Screen design: [Tab 1 · Sprint Tickets](screens/screen-1-sprint-tickets.png) — sprint header (US-07), ticket table (US-08), flag panel (US-09), Contributor dropdown on NWD-418 (US-10), change list and Reload (US-11).
 
 ![Tab 1 Sprint Tickets screen](screens/screen-1-sprint-tickets.png)
 
@@ -437,7 +437,7 @@ Screen design: [Tab 4 · Planning Calendar](screens/screen-4-planning-calendar.p
 
 **Acceptance criteria**
 
-- **AC-1 Live update** — **Given** I drag Marc's PCAP-427 Dev card to Lorenzo, **when** I drop it, **then** both loads and the verdict update within 1 second.
+- **AC-1 Live update** — **Given** I drag Marc's NWD-427 Dev card to Lorenzo, **when** I drop it, **then** both loads and the verdict update within 1 second.
 - **AC-2 Snap** — **Given** I drop a card at day 3.3, **when** it lands, **then** it starts at day 3.5.
 - **AC-3 No overlap** — **Given** I drop onto another card, **when** it lands, **then** later cards on that row move right and none overlap.
 - **AC-4 Wrong role** — **Given** I drop a Dev card on a BA-only resource, **when** I release, **then** I am asked to confirm.
@@ -501,7 +501,7 @@ Screen design: Save plan and Publish to team in the header of [every tab](screen
 
 **As a** Scrum Master, **I want** one Save plan button that saves every tab, **so that** I never lose changes made in another tab.
 
-**Context.** FR-25 (v0.4: single save for Tabs 1-4) and the concurrent-edit edge case.
+**Context.** FR-25 (v0.4: single save for Tabs 1-4; v0.9: read-only users, in-page questions) and the concurrent-edit edge case.
 
 **Acceptance criteria**
 
@@ -510,8 +510,11 @@ Screen design: Save plan and Publish to team in the header of [every tab](screen
 - **AC-3 Unsaved warning** — **Given** I have unsaved changes, **when** I leave the page, **then** I am asked to confirm.
 - **AC-4 Concurrent edit** — **Given** the PO saved after I opened the plan, **when** I save, **then** I am warned the plan changed since I opened it before anything is overwritten.
 - **AC-5 Jira untouched** — **Given** I save, **when** I check Jira history, **then** no change was made by the tool.
+- **AC-6 No permission to save** — **Given** I can view the planning page but may not add attachments on it, **when** the page opens, **then** a note at the top says I am read-only and why, and Save config, Save plan and Publish are disabled with the same reason on hover. **Given** Confluence does not report my permissions, **then** the buttons stay enabled and the save itself gives the answer.
 
-**Technical notes.** `scp-store.js` checks the attachment version before writing `scp-plan.json`.
+**Design notes.** Every question the planner asks (save over someone else's version, close the open plan, publish under another title, move a Dev card to a BA, delete a location in use) opens in a dialog inside the page, never a browser pop-up; Cancel has the focus and Esc answers Cancel (PRD v0.9, FR-25).
+
+**Technical notes.** `scp-store.js` checks the attachment version before writing `scp-plan.json`. Every write sends the XSRF header and, on a 403, retries once with the other spelling (`no-check` / `nocheck`), keeping the one that works for the rest of the visit. The permission comes from `GET /rest/api/content/{pageId}?expand=operations`, as in the Release Impact admin tool.
 
 **Dependencies.** US-07.
 
@@ -566,7 +569,7 @@ Screen design: Save plan and Publish to team in the header of [every tab](screen
 - **AC-3 No leave** — **Given** the page is published, **when** I open `scp-snapshot.json`, **then** it holds no leave dates, availability % or per-person holidays.
 - **AC-4 Name clash** — **Given** a page with that title exists but was not created by this plan, **when** I publish, **then** Publish stops and names the page; nothing is overwritten.
 
-**Technical notes.** `POST /rest/api/content` as the publishing user; parent found by stored page ID (kept in `scp-config.json`), the sprint page by the ID kept in `scp-plan.json`. Every Publish writes `scp-view.css` and `scp-view.js` to the parent page (PRD v0.8). Publish is disabled while the plan has unsaved changes.
+**Technical notes.** `POST /rest/api/content` as the publishing user; parent found by stored page ID (kept in `scp-config.json`), the sprint page by the ID kept in `scp-plan.json`. Every Publish writes `scp-view.css` and `scp-view.js` to the parent page (PRD v0.8). Publish is disabled while the plan has unsaved changes, or while the user may not add attachments on the planning page (US-20 AC-6).
 
 **Dependencies.** US-20, US-22.
 

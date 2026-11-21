@@ -271,11 +271,12 @@
         if (err.conflict) {
           var who = err.current ? ' by ' + (err.current.by || 'someone') + ' on ' + ui.fmtWhen(err.current.when) : '';
           SCP.app.render();
-          if (window.confirm('The config was changed' + who + ' since you opened this page.\n\nOverwrite it with your version?')) {
-            return tab.save(true);
-          }
-          SCP.app.notice('warn', 'Not saved: the config changed since you opened it. Reload the page to see the latest version.');
-          return false;
+          return ui.confirm({ title: 'The config was changed', ok: 'Overwrite',
+            message: 'The config was changed' + who + ' since you opened this page.\n\nOverwrite it with your version?' }).then(function (yes) {
+            if (yes) { return tab.save(true); }
+            SCP.app.notice('warn', 'Not saved: the config changed since you opened it. Reload the page to see the latest version.');
+            return false;
+          });
         }
         SCP.app.render();
         SCP.app.notice('error', 'Could not save the config: ' + ui.esc(err.message));
@@ -299,7 +300,8 @@
       '<div class="scp-sub" data-test="config-saved">' + sub + '</div>' +
       '</div>' +
       '<div class="scp-head__actions">' +
-      '<button type="button" class="scp-btn scp-btn--primary" data-act="save-config"' + (view.saving ? ' disabled' : '') + '>' +
+      '<button type="button" class="scp-btn scp-btn--primary" data-act="save-config"' + (view.saving || SCP.app.noWrite() ? ' disabled' : '') +
+      (SCP.app.noWrite() ? ' title="' + ui.esc(SCP.app.NO_WRITE) + '"' : '') + '>' +
       (view.saving ? 'Saving…' : 'Save config') + '</button></div>';
     head.querySelector('[data-act="save-config"]').addEventListener('click', function () { tab.save(false); });
   }
@@ -676,9 +678,15 @@
     } else if (act === 'loc-del') {
       var dl = findLoc(el.getAttribute('data-loc'));
       var used = resourcesAt(dl.id);
-      if (used && !window.confirm(dl.name + ' is the location of ' + used + ' resource(s) in the open plan. Delete it anyway?')) { return; }
-      c.locations = c.locations.filter(function (l) { return l !== dl; });
-      edited(); redraw();
+      var drop = function () {
+        c.locations = c.locations.filter(function (l) { return l !== dl; });
+        edited(); redraw();
+      };
+      if (!used) { drop(); return; }
+      ui.confirm({ title: 'Delete ' + dl.name + '?', ok: 'Delete',
+        message: dl.name + ' is the location of ' + used + ' resource(s) in the open plan. Delete it anyway?' }).then(function (yes) {
+        if (yes) { drop(); }
+      });
     } else if (act === 'hol-add') {
       addHoliday(el.getAttribute('data-loc'));
     } else if (act === 'hol-del') {
