@@ -786,6 +786,31 @@
 (function (SCP) {
   'use strict';
 
+  /** "https://jira.x///" -> "https://jira.x". A loop, not /\/+$/, which is slow on crafted input (Sonar ReDoS rule). */
+  function trimSlashes(s) {
+    var end = s.length;
+    while (end > 0 && s.charAt(end - 1) === '/') { end -= 1; }
+    return s.slice(0, end);
+  }
+
+  /**
+   * Text without its <tags>, as Jira's value suggestions wrap the match in <b>.
+   * Same result as s.replace(/<[^>]*>/g, ''): a "<" with no ">" after it stays.
+   * An indexOf scan instead of that regex, which is slow on crafted input (Sonar ReDoS rule).
+   */
+  function stripTags(s) {
+    var out = '';
+    var i = 0;
+    while (i < s.length) {
+      var open = s.indexOf('<', i);
+      var close = open === -1 ? -1 : s.indexOf('>', open);
+      if (close === -1) { return out + s.slice(i); }
+      out += s.slice(i, open);
+      i = close + 1;
+    }
+    return out;
+  }
+
   var jira = SCP.jira = {};
 
   function settings() {
@@ -807,7 +832,7 @@
   /** Link to a ticket in Jira (US-08 AC-3). */
   jira.browseUrl = function (key) {
     if (!jira.server || !jira.server.url) { return '#'; }
-    return jira.server.url.replace(/\/+$/, '') + '/browse/' + encodeURIComponent(key);
+    return trimSlashes(jira.server.url) + '/browse/' + encodeURIComponent(key);
   };
 
   /** Name of the linked Jira shown in Config messages: its host, else its link name, else "Jira". */
@@ -849,7 +874,7 @@
       return res.text().then(function (text) {
         var body = text;
         var isJson = false;
-        try { body = JSON.parse(text); isJson = true; } catch (e) { /* not JSON */ }
+        try { body = JSON.parse(text); isJson = true; } catch { /* not JSON */ }
         return { res: res, body: body, isJson: isJson };
       });
     }, function (e) {
@@ -870,17 +895,17 @@
       }
       var list = Array.isArray(r.body) ? r.body : (r.body && r.body.servers) || [];
       if (!list.length) { throw new JiraError('noLink', 'This Confluence is not linked to any Jira'); }
-      var want = String(settings().jiraServer || '').trim().toLowerCase().replace(/\/+$/, '');
+      var want = trimSlashes(String(settings().jiraServer || '').trim().toLowerCase());
       var hit = null;
       if (want) {
         hit = list.filter(function (x) {
-          return [x.id, x.name, x.url].some(function (v) { return String(v || '').toLowerCase().replace(/\/+$/, '') === want; });
+          return [x.id, x.name, x.url].some(function (v) { return trimSlashes(String(v || '').toLowerCase()) === want; });
         })[0];
         if (!hit) { throw new JiraError('noLink', 'No Jira link called "' + settings().jiraServer + '" (jiraServer in the macro)'); }
       } else {
         hit = list.filter(function (x) { return x.selected || x.primary; })[0] || list[0];
       }
-      jira.server = { id: String(hit.id), name: hit.name || 'Jira', url: String(hit.url || '').replace(/\/+$/, ''), authUrl: hit.authUrl || '' };
+      jira.server = { id: String(hit.id), name: hit.name || 'Jira', url: trimSlashes(String(hit.url || '')), authUrl: hit.authUrl || '' };
       return jira.server;
     });
   };
@@ -994,7 +1019,7 @@
       encodeURIComponent(jira.jqlName(teamFieldId)) + '&fieldValue=').then(function (r) {
       var seen = {};
       return ((r && r.results) || []).map(function (x) {
-        return String(x.value || x.displayName || '').replace(/<[^>]*>/g, '').replace(/^"|"$/g, '');
+        return stripTags(String(x.value || x.displayName || '')).replace(/^"|"$/g, '');
       }).filter(function (v) {
         if (!v || seen[v]) { return false; }
         seen[v] = true;
@@ -1258,7 +1283,7 @@
     return sent.then(function (res) {
       return res.text().then(function (t) {
         var data = null;
-        try { data = t ? JSON.parse(t) : null; } catch (e) { data = null; }
+        try { data = t ? JSON.parse(t) : null; } catch { data = null; }
         if (!res.ok) {
           var err = new Error((data && data.message) || ('HTTP ' + res.status));
           err.status = res.status;
@@ -1677,7 +1702,6 @@
 
   function connectionMessage(conn) {
     var e = conn.error;
-    var key = cfg().jira.projectKey;
     if (conn.status === 'testing') {
       return { cls: 'neutral', title: 'Testing the connection…', detail: '' };
     }
@@ -1691,7 +1715,7 @@
       return {
         cls: 'error', title: 'Not authorised: Confluence may not read Jira for you yet',
         detail: (e.authUrl
-          ? '<a href="' + ui.esc(e.authUrl) + '" target="_blank" rel="noopener" data-test="authorise">Allow access to ' + ui.esc(SCP.jira.hostName()) + '</a> (once per person), approve, then click Test connection again.'
+          ? '<a href="' + ui.esc(ui.safeUrl(e.authUrl)) + '" target="_blank" rel="noopener" data-test="authorise">Allow access to ' + ui.esc(SCP.jira.hostName()) + '</a> (once per person), approve, then click Test connection again.'
           : 'Allow Confluence to use your Jira account (any Jira macro on a Confluence page offers "Login & approve"), then click Test connection again.')
       };
     }
@@ -2098,11 +2122,7 @@
       redraw();
     } else if (act === 'field') {
       onFieldPicked(el);
-    } else if (act === 'project-key') {
-      onInput(e);
-      edited();
-      redraw();
-    } else if (act === 'split' || act === 'ceremony' || act === 'threshold' || act === 'band' || act === 'loc-name') {
+    } else if (act === 'project-key' || act === 'split' || act === 'ceremony' || act === 'threshold' || act === 'band' || act === 'loc-name') {
       onInput(e);
       edited();
       redraw();
@@ -2524,7 +2544,7 @@
       var t = r.t;
       var m = r.m;
       return '<tr class="' + (m.flags.length ? 'is-flagged' : '') + '" data-key="' + ui.esc(t.key) + '">' +
-        '<td><a href="' + ui.esc(SCP.jira.browseUrl(t.key)) + '" target="_blank" rel="noopener">' + ui.esc(t.key) + '</a></td>' +
+        '<td><a href="' + ui.esc(ui.safeUrl(SCP.jira.browseUrl(t.key))) + '" target="_blank" rel="noopener">' + ui.esc(t.key) + '</a></td>' +
         '<td>' + ui.esc(t.summary) + '</td><td>' + ui.esc(t.type) + '</td>' +
         '<td data-col="dev">' + personCell(t, m, 'dev') + '</td><td data-col="ba">' + personCell(t, m, 'ba') + '</td>' +
         '<td class="num" data-col="sp">' + spCell(t, m) + '</td>' +
@@ -3667,7 +3687,7 @@
         var hit = findCard(calc.planCalendar(plan(), cfg()), btn.getAttribute('data-card'));
         var grab = at && hit ? Math.max(0, at.day - hit.k.s) : 0;
         view.drag = { id: btn.getAttribute('data-card'), x: e.clientX, y: e.clientY, grab: grab, moving: false, btn: btn };
-        try { btn.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
+        try { btn.setPointerCapture(e.pointerId); } catch { /* pointer capture not supported */ }
       });
       btn.addEventListener('pointermove', function (e) {
         var d = view.drag;
@@ -3998,6 +4018,11 @@
    * loads the viewer from the parent page. Written into the page body, not as a file (PRD File Structure).
    */
   publish.macroBody = function (parentId) {
+    /* Loads the viewer the way the planning page's loader does (and the
+       Release Impact macro): <link href> and <script src> with each file's
+       attachment version, so a republished viewer is never served from the
+       browser cache. The code is never fetched as text and run, which
+       security scans report as dynamic code evaluation. */
     var loader =
       '<div id="scp-view"><p>Loading the sprint plan…</p></div>\n' +
       '<script>\n' +
@@ -4005,19 +4030,36 @@
       '  (function () {\n' +
       '    var PARENT = ' + JSON.stringify(String(parentId)) + ';\n' +
       '    function meta(n) { var m = document.querySelector(\'meta[name="\' + n + \'"]\'); return m ? m.getAttribute(\'content\') || \'\' : \'\'; }\n' +
-      '    var base = meta(\'ajs-context-path\') + \'/download/attachments/\' + PARENT + \'/\';\n' +
-      '    function get(name) {\n' +
-      '      return fetch(base + name + \'?api=v2\', { credentials: \'same-origin\', cache: \'no-store\' }).then(function (r) {\n' +
-      '        if (!r.ok) { throw new Error(name + \' is missing on the parent page (HTTP \' + r.status + \')\'); }\n' +
-      '        return r.text();\n' +
-      '      });\n' +
+      '    var ctx = meta(\'ajs-context-path\');\n' +
+      '    var view = document.getElementById(\'scp-view\');\n' +
+      '    function fail(text) {\n' +
+      '      var p = document.createElement(\'p\');\n' +
+      '      p.style.color = \'#b42318\';\n' +
+      '      p.textContent = \'Sprint plan: \' + text + \'. Publish the plan again from the planning page.\';\n' +
+      '      view.textContent = \'\';\n' +
+      '      view.appendChild(p);\n' +
       '    }\n' +
-      '    Promise.all([get(\'scp-view.css\'), get(\'scp-view.js\')]).then(function (f) {\n' +
-      '      var st = document.createElement(\'style\'); st.textContent = f[0]; document.head.appendChild(st);\n' +
-      '      var sc = document.createElement(\'script\'); sc.textContent = f[1]; document.body.appendChild(sc);\n' +
-      '    }).catch(function (e) {\n' +
-      '      document.getElementById(\'scp-view\').innerHTML = \'<p style="color:#b42318">Sprint plan: \' + e.message + \'. Publish the plan again from the planning page.</p>\';\n' +
-      '    });\n' +
+      '    function url(name, ver) {\n' +
+      '      return ctx + \'/download/attachments/\' + encodeURIComponent(PARENT) + \'/\' + name + \'?api=v2\' + (ver ? \'&v=\' + ver : \'\');\n' +
+      '    }\n' +
+      '    fetch(ctx + \'/rest/api/content/\' + encodeURIComponent(PARENT) + \'/child/attachment?expand=version&limit=100\',\n' +
+      '      { headers: { Accept: \'application/json\' }, credentials: \'same-origin\', cache: \'no-store\' })\n' +
+      '      .then(function (r) { return r.ok ? r.json() : null; })\n' +
+      '      .then(function (b) {\n' +
+      '        var ver = {};\n' +
+      '        ((b && b.results) || []).forEach(function (a) { if (a && a.title && a.version) { ver[a.title] = a.version.number; } });\n' +
+      '        return ver;\n' +
+      '      }, function () { return {}; })\n' +
+      '      .then(function (ver) {\n' +
+      '        var css = document.createElement(\'link\');\n' +
+      '        css.rel = \'stylesheet\';\n' +
+      '        css.href = url(\'scp-view.css\', ver[\'scp-view.css\']);\n' +
+      '        document.head.appendChild(css);\n' +
+      '        var js = document.createElement(\'script\');\n' +
+      '        js.onerror = function () { fail(\'scp-view.js could not be loaded from the parent page\'); };\n' +
+      '        js.src = url(\'scp-view.js\', ver[\'scp-view.js\']);\n' +
+      '        document.body.appendChild(js);\n' +
+      '      });\n' +
       '  }());\n' +
       '</script>\n';
     return '<ac:structured-macro ac:name="html" ac:schema-version="1"><ac:plain-text-body><![CDATA[' + loader +
@@ -4144,7 +4186,7 @@
       plan.published = { pageId: page.id, title: page.title, parentId: parent.id, at: when, by: who };
       s.publishing = false;
       return SCP.app.savePlan(false).then(function () {
-        SCP.app.notice('ok', 'Published to <a href="' + ui.esc(page.url) + '" target="_blank" rel="noopener" data-test="published-link">' +
+        SCP.app.notice('ok', 'Published to <a href="' + ui.esc(ui.safeUrl(page.url)) + '" target="_blank" rel="noopener" data-test="published-link">' +
           ui.esc(page.title) + '</a>, readable by everyone who can view it. Leave and availability are not on it.');
         return page;
       });
@@ -4196,6 +4238,17 @@
     return d.getDate() + ' ' + SCP.calc.MONTH_SHORT[d.getMonth()] + ' ' + d.getFullYear() + ', ' + hh + ':' + mm;
   };
 
+  /**
+   * A link address that is safe to put in href: http(s), or a path on this
+   * Confluence. Anything else (javascript:, data:, //other-site) becomes '#'.
+   * Escaping stops HTML injection but not a javascript: address, so every
+   * address that comes from Jira or Confluence goes through here.
+   */
+  ui.safeUrl = function (u) {
+    var s = String(u === null || u === undefined ? '' : u).trim();
+    return /^https?:\/\//i.test(s) || /^\/(?!\/)/.test(s) ? s : '#';
+  };
+
   ui.isNum = function (v) {
     return typeof v === 'number' && isFinite(v);
   };
@@ -4237,7 +4290,7 @@
       function finish(answer) {
         if (done) { return; }
         done = true;
-        try { if (dlg.open && dlg.close) { dlg.close(); } } catch (e) { /* already closed */ }
+        try { if (dlg.open && dlg.close) { dlg.close(); } } catch { /* already closed */ }
         host.parentNode.removeChild(host);
         resolve(answer);
       }

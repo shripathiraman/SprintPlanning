@@ -34,6 +34,17 @@
     return d.getDate() + ' ' + SCP.calc.MONTH_SHORT[d.getMonth()] + ' ' + d.getFullYear() + ', ' + hh + ':' + mm;
   };
 
+  /**
+   * A link address that is safe to put in href: http(s), or a path on this
+   * Confluence. Anything else (javascript:, data:, //other-site) becomes '#'.
+   * Escaping stops HTML injection but not a javascript: address, so every
+   * address that comes from Jira or Confluence goes through here.
+   */
+  ui.safeUrl = function (u) {
+    var s = String(u === null || u === undefined ? '' : u).trim();
+    return /^https?:\/\//i.test(s) || /^\/(?!\/)/.test(s) ? s : '#';
+  };
+
   ui.isNum = function (v) {
     return typeof v === 'number' && isFinite(v);
   };
@@ -75,7 +86,7 @@
       function finish(answer) {
         if (done) { return; }
         done = true;
-        try { if (dlg.open && dlg.close) { dlg.close(); } } catch (e) { /* already closed */ }
+        try { if (dlg.open && dlg.close) { dlg.close(); } } catch { /* already closed */ }
         host.parentNode.removeChild(host);
         resolve(answer);
       }

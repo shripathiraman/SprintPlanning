@@ -310,7 +310,6 @@
 
   function connectionMessage(conn) {
     var e = conn.error;
-    var key = cfg().jira.projectKey;
     if (conn.status === 'testing') {
       return { cls: 'neutral', title: 'Testing the connection…', detail: '' };
     }
@@ -324,7 +323,7 @@
       return {
         cls: 'error', title: 'Not authorised: Confluence may not read Jira for you yet',
         detail: (e.authUrl
-          ? '<a href="' + ui.esc(e.authUrl) + '" target="_blank" rel="noopener" data-test="authorise">Allow access to ' + ui.esc(SCP.jira.hostName()) + '</a> (once per person), approve, then click Test connection again.'
+          ? '<a href="' + ui.esc(ui.safeUrl(e.authUrl)) + '" target="_blank" rel="noopener" data-test="authorise">Allow access to ' + ui.esc(SCP.jira.hostName()) + '</a> (once per person), approve, then click Test connection again.'
           : 'Allow Confluence to use your Jira account (any Jira macro on a Confluence page offers "Login & approve"), then click Test connection again.')
       };
     }
@@ -731,11 +730,7 @@
       redraw();
     } else if (act === 'field') {
       onFieldPicked(el);
-    } else if (act === 'project-key') {
-      onInput(e);
-      edited();
-      redraw();
-    } else if (act === 'split' || act === 'ceremony' || act === 'threshold' || act === 'band' || act === 'loc-name') {
+    } else if (act === 'project-key' || act === 'split' || act === 'ceremony' || act === 'threshold' || act === 'band' || act === 'loc-name') {
       onInput(e);
       edited();
       redraw();

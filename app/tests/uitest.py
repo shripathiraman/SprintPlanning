@@ -15,6 +15,7 @@ import re
 import socketserver
 import urllib.parse
 import sys
+import tempfile
 import threading
 import traceback
 
@@ -209,11 +210,11 @@ def run(only=None):
                 failed += 1
                 print("FAIL  " + name + "\n      " + (str(e) or traceback.format_exc()).splitlines()[0][:400])
                 try:
-                    shot = os.path.join("/tmp", "fail-" + "".join(c if c.isalnum() else "_" for c in name)[:60] + ".png")
+                    shot = os.path.join(tempfile.gettempdir(), "fail-" + "".join(c if c.isalnum() else "_" for c in name)[:60] + ".png")
                     app.page.screenshot(path=shot, full_page=True)
                     print("      screenshot: " + shot)
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as shot_error:  # noqa: BLE001
+                    print("      (no screenshot: %s)" % shot_error)
             finally:
                 app.close()
         browser.close()

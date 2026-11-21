@@ -266,6 +266,11 @@
    * loads the viewer from the parent page. Written into the page body, not as a file (PRD File Structure).
    */
   publish.macroBody = function (parentId) {
+    /* Loads the viewer the way the planning page's loader does (and the
+       Release Impact macro): <link href> and <script src> with each file's
+       attachment version, so a republished viewer is never served from the
+       browser cache. The code is never fetched as text and run, which
+       security scans report as dynamic code evaluation. */
     var loader =
       '<div id="scp-view"><p>Loading the sprint plan…</p></div>\n' +
       '<script>\n' +
@@ -273,19 +278,36 @@
       '  (function () {\n' +
       '    var PARENT = ' + JSON.stringify(String(parentId)) + ';\n' +
       '    function meta(n) { var m = document.querySelector(\'meta[name="\' + n + \'"]\'); return m ? m.getAttribute(\'content\') || \'\' : \'\'; }\n' +
-      '    var base = meta(\'ajs-context-path\') + \'/download/attachments/\' + PARENT + \'/\';\n' +
-      '    function get(name) {\n' +
-      '      return fetch(base + name + \'?api=v2\', { credentials: \'same-origin\', cache: \'no-store\' }).then(function (r) {\n' +
-      '        if (!r.ok) { throw new Error(name + \' is missing on the parent page (HTTP \' + r.status + \')\'); }\n' +
-      '        return r.text();\n' +
-      '      });\n' +
+      '    var ctx = meta(\'ajs-context-path\');\n' +
+      '    var view = document.getElementById(\'scp-view\');\n' +
+      '    function fail(text) {\n' +
+      '      var p = document.createElement(\'p\');\n' +
+      '      p.style.color = \'#b42318\';\n' +
+      '      p.textContent = \'Sprint plan: \' + text + \'. Publish the plan again from the planning page.\';\n' +
+      '      view.textContent = \'\';\n' +
+      '      view.appendChild(p);\n' +
       '    }\n' +
-      '    Promise.all([get(\'scp-view.css\'), get(\'scp-view.js\')]).then(function (f) {\n' +
-      '      var st = document.createElement(\'style\'); st.textContent = f[0]; document.head.appendChild(st);\n' +
-      '      var sc = document.createElement(\'script\'); sc.textContent = f[1]; document.body.appendChild(sc);\n' +
-      '    }).catch(function (e) {\n' +
-      '      document.getElementById(\'scp-view\').innerHTML = \'<p style="color:#b42318">Sprint plan: \' + e.message + \'. Publish the plan again from the planning page.</p>\';\n' +
-      '    });\n' +
+      '    function url(name, ver) {\n' +
+      '      return ctx + \'/download/attachments/\' + encodeURIComponent(PARENT) + \'/\' + name + \'?api=v2\' + (ver ? \'&v=\' + ver : \'\');\n' +
+      '    }\n' +
+      '    fetch(ctx + \'/rest/api/content/\' + encodeURIComponent(PARENT) + \'/child/attachment?expand=version&limit=100\',\n' +
+      '      { headers: { Accept: \'application/json\' }, credentials: \'same-origin\', cache: \'no-store\' })\n' +
+      '      .then(function (r) { return r.ok ? r.json() : null; })\n' +
+      '      .then(function (b) {\n' +
+      '        var ver = {};\n' +
+      '        ((b && b.results) || []).forEach(function (a) { if (a && a.title && a.version) { ver[a.title] = a.version.number; } });\n' +
+      '        return ver;\n' +
+      '      }, function () { return {}; })\n' +
+      '      .then(function (ver) {\n' +
+      '        var css = document.createElement(\'link\');\n' +
+      '        css.rel = \'stylesheet\';\n' +
+      '        css.href = url(\'scp-view.css\', ver[\'scp-view.css\']);\n' +
+      '        document.head.appendChild(css);\n' +
+      '        var js = document.createElement(\'script\');\n' +
+      '        js.onerror = function () { fail(\'scp-view.js could not be loaded from the parent page\'); };\n' +
+      '        js.src = url(\'scp-view.js\', ver[\'scp-view.js\']);\n' +
+      '        document.body.appendChild(js);\n' +
+      '      });\n' +
       '  }());\n' +
       '</script>\n';
     return '<ac:structured-macro ac:name="html" ac:schema-version="1"><ac:plain-text-body><![CDATA[' + loader +
@@ -412,7 +434,7 @@
       plan.published = { pageId: page.id, title: page.title, parentId: parent.id, at: when, by: who };
       s.publishing = false;
       return SCP.app.savePlan(false).then(function () {
-        SCP.app.notice('ok', 'Published to <a href="' + ui.esc(page.url) + '" target="_blank" rel="noopener" data-test="published-link">' +
+        SCP.app.notice('ok', 'Published to <a href="' + ui.esc(ui.safeUrl(page.url)) + '" target="_blank" rel="noopener" data-test="published-link">' +
           ui.esc(page.title) + '</a>, readable by everyone who can view it. Leave and availability are not on it.');
         return page;
       });

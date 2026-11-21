@@ -164,7 +164,7 @@
     return sent.then(function (res) {
       return res.text().then(function (t) {
         var data = null;
-        try { data = t ? JSON.parse(t) : null; } catch (e) { data = null; }
+        try { data = t ? JSON.parse(t) : null; } catch { data = null; }
         if (!res.ok) {
           var err = new Error((data && data.message) || ('HTTP ' + res.status));
           err.status = res.status;

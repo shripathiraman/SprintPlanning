@@ -155,7 +155,8 @@
     }
     if (sc === 'unauthorised') {
       return text(401, '', {
-        'WWW-Authenticate': 'OAuth realm="https://jira.northwind.example", oauth_authorisation_uri="https://confluence.example/plugins/servlet/applinks/oauth/login-dance/authorize?applicationLinkID=mock-link"'
+        'WWW-Authenticate': 'OAuth realm="https://jira.northwind.example", oauth_authorisation_uri="' +
+          (localStorage.getItem('scp-mock-auth-uri') || 'https://confluence.example/plugins/servlet/applinks/oauth/login-dance/authorize?applicationLinkID=mock-link') + '"'
       });
     }
     var u = new URL(path, 'https://jira.northwind.example');

@@ -347,7 +347,7 @@
       var t = r.t;
       var m = r.m;
       return '<tr class="' + (m.flags.length ? 'is-flagged' : '') + '" data-key="' + ui.esc(t.key) + '">' +
-        '<td><a href="' + ui.esc(SCP.jira.browseUrl(t.key)) + '" target="_blank" rel="noopener">' + ui.esc(t.key) + '</a></td>' +
+        '<td><a href="' + ui.esc(ui.safeUrl(SCP.jira.browseUrl(t.key))) + '" target="_blank" rel="noopener">' + ui.esc(t.key) + '</a></td>' +
         '<td>' + ui.esc(t.summary) + '</td><td>' + ui.esc(t.type) + '</td>' +
         '<td data-col="dev">' + personCell(t, m, 'dev') + '</td><td data-col="ba">' + personCell(t, m, 'ba') + '</td>' +
         '<td class="num" data-col="sp">' + spCell(t, m) + '</td>' +

@@ -486,7 +486,7 @@
         var hit = findCard(calc.planCalendar(plan(), cfg()), btn.getAttribute('data-card'));
         var grab = at && hit ? Math.max(0, at.day - hit.k.s) : 0;
         view.drag = { id: btn.getAttribute('data-card'), x: e.clientX, y: e.clientY, grab: grab, moving: false, btn: btn };
-        try { btn.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
+        try { btn.setPointerCapture(e.pointerId); } catch { /* pointer capture not supported */ }
       });
       btn.addEventListener('pointermove', function (e) {
         var d = view.drag;

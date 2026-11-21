@@ -16,6 +16,31 @@
 (function (SCP) {
   'use strict';
 
+  /** "https://jira.x///" -> "https://jira.x". A loop, not /\/+$/, which is slow on crafted input (Sonar ReDoS rule). */
+  function trimSlashes(s) {
+    var end = s.length;
+    while (end > 0 && s.charAt(end - 1) === '/') { end -= 1; }
+    return s.slice(0, end);
+  }
+
+  /**
+   * Text without its <tags>, as Jira's value suggestions wrap the match in <b>.
+   * Same result as s.replace(/<[^>]*>/g, ''): a "<" with no ">" after it stays.
+   * An indexOf scan instead of that regex, which is slow on crafted input (Sonar ReDoS rule).
+   */
+  function stripTags(s) {
+    var out = '';
+    var i = 0;
+    while (i < s.length) {
+      var open = s.indexOf('<', i);
+      var close = open === -1 ? -1 : s.indexOf('>', open);
+      if (close === -1) { return out + s.slice(i); }
+      out += s.slice(i, open);
+      i = close + 1;
+    }
+    return out;
+  }
+
   var jira = SCP.jira = {};
 
   function settings() {
@@ -37,7 +62,7 @@
   /** Link to a ticket in Jira (US-08 AC-3). */
   jira.browseUrl = function (key) {
     if (!jira.server || !jira.server.url) { return '#'; }
-    return jira.server.url.replace(/\/+$/, '') + '/browse/' + encodeURIComponent(key);
+    return trimSlashes(jira.server.url) + '/browse/' + encodeURIComponent(key);
   };
 
   /** Name of the linked Jira shown in Config messages: its host, else its link name, else "Jira". */
@@ -79,7 +104,7 @@
       return res.text().then(function (text) {
         var body = text;
         var isJson = false;
-        try { body = JSON.parse(text); isJson = true; } catch (e) { /* not JSON */ }
+        try { body = JSON.parse(text); isJson = true; } catch { /* not JSON */ }
         return { res: res, body: body, isJson: isJson };
       });
     }, function (e) {
@@ -100,17 +125,17 @@
       }
       var list = Array.isArray(r.body) ? r.body : (r.body && r.body.servers) || [];
       if (!list.length) { throw new JiraError('noLink', 'This Confluence is not linked to any Jira'); }
-      var want = String(settings().jiraServer || '').trim().toLowerCase().replace(/\/+$/, '');
+      var want = trimSlashes(String(settings().jiraServer || '').trim().toLowerCase());
       var hit = null;
       if (want) {
         hit = list.filter(function (x) {
-          return [x.id, x.name, x.url].some(function (v) { return String(v || '').toLowerCase().replace(/\/+$/, '') === want; });
+          return [x.id, x.name, x.url].some(function (v) { return trimSlashes(String(v || '').toLowerCase()) === want; });
         })[0];
         if (!hit) { throw new JiraError('noLink', 'No Jira link called "' + settings().jiraServer + '" (jiraServer in the macro)'); }
       } else {
         hit = list.filter(function (x) { return x.selected || x.primary; })[0] || list[0];
       }
-      jira.server = { id: String(hit.id), name: hit.name || 'Jira', url: String(hit.url || '').replace(/\/+$/, ''), authUrl: hit.authUrl || '' };
+      jira.server = { id: String(hit.id), name: hit.name || 'Jira', url: trimSlashes(String(hit.url || '')), authUrl: hit.authUrl || '' };
       return jira.server;
     });
   };
@@ -224,7 +249,7 @@
       encodeURIComponent(jira.jqlName(teamFieldId)) + '&fieldValue=').then(function (r) {
       var seen = {};
       return ((r && r.results) || []).map(function (x) {
-        return String(x.value || x.displayName || '').replace(/<[^>]*>/g, '').replace(/^"|"$/g, '');
+        return stripTags(String(x.value || x.displayName || '')).replace(/^"|"$/g, '');
       }).filter(function (v) {
         if (!v || seen[v]) { return false; }
         seen[v] = true;
