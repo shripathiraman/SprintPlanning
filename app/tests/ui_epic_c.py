@@ -77,7 +77,7 @@ def _(app):
     start(app, with_last_plan=False)
     r = {x["name"]: (x["role"], x["loc"], x["tag"]) for x in rows(app)}
     check(r["Lorenzo"] == ("Dev", "Choose…", False) and r["Karthik"] == ("BA", "Choose…", False), r)
-    check(len(r) == 5, "Priya and Marc of PCAP-418 appear once each")
+    check(len(r) == 5, "Priya and Marc of NWD-418 appear once each")
 
 
 @test("US-12 Team members not on any ticket this sprint still carry over (source Team)")
@@ -95,7 +95,7 @@ def _(app):
 def _(app):
     def add_chloe(issues):
         for i in issues:
-            if i["key"] == "PCAP-438":
+            if i["key"] == "NWD-438":
                 i["ba"] = ["chloe"]
     start(app, issues_change=add_chloe)
     chloe = [x for x in rows(app) if x["name"] == "Chloe"]
@@ -110,7 +110,7 @@ def _(app):
 def _(app):
     def add_chloe(issues):
         for i in issues:
-            if i["key"] == "PCAP-438":
+            if i["key"] == "NWD-438":
                 i["ba"] = ["chloe"]
     start(app, issues_change=add_chloe)
     app.page.click("[data-test=not-in-team] ~ [data-act=remove][data-id=chloe]")
@@ -128,7 +128,7 @@ def _(app):
     start(app)
     issues = app.fixture("issues")
     for i in issues["2600"]:
-        if i["key"] == "PCAP-433":
+        if i["key"] == "NWD-433":
             i["dev"] = ["chloe"]
     app.set_fixture("issues", issues)
     app.tab(TICKETS)

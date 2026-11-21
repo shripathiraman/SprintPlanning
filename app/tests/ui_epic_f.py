@@ -96,19 +96,19 @@ def set_sprint_state(app, sprint_id, state):
 def _(app):
     design_sprint(app, save=False)
     app.tab(TICKETS)
-    app.page.select_option("[data-act=pick][data-key=PCAP-418][data-role=dev]", "marc")
+    app.page.select_option("[data-act=pick][data-key=NWD-418][data-role=dev]", "marc")
     app.settle()
     app.tab(CALENDAR)
-    app.page.evaluate("() => SCP.tabs.calendar.move('PCAP-441|dev', 'lorenzo', 11.5)")
+    app.page.evaluate("() => SCP.tabs.calendar.move('NWD-441|dev', 'lorenzo', 11.5)")
     app.settle()
     check(app.state("S.planDirty") is True, "unsaved")
     save_plan(app)
     app.reload()
     p = app.state("S.plan")
-    t418 = [t for t in p["tickets"] if t["key"] == "PCAP-418"][0]
+    t418 = [t for t in p["tickets"] if t["key"] == "NWD-418"][0]
     check(t418.get("devPick") == "marc", t418)
     check(p["leave"]["marc"] == {"2027-01-07": 1, "2027-01-08": 1} and p["leave"]["karthik"] == {"2027-01-21": "am"}, p["leave"])
-    check({"key": "PCAP-441", "role": "dev", "person": "lorenzo", "start": 11.5} in p["cards"], p["cards"])
+    check({"key": "NWD-441", "role": "dev", "person": "lorenzo", "start": 11.5} in p["cards"], p["cards"])
 
 
 @test("US-20 AC-2 Save plan and Publish sit in the same place on Tabs 1 to 4")
@@ -153,7 +153,7 @@ def _(app):
 def _(app):
     design_sprint(app)
     app.tab(CALENDAR)
-    app.page.evaluate("() => SCP.tabs.calendar.move('PCAP-427|dev', 'lorenzo', 12)")
+    app.page.evaluate("() => SCP.tabs.calendar.move('NWD-427|dev', 'lorenzo', 12)")
     save_plan(app)
     publish(app)
     reqs = app.page.evaluate("() => window.SCP_MOCK.requests")
@@ -188,11 +188,11 @@ def _(app):
         check(app.page.is_disabled("[data-act=save-plan]"), (t, "Save plan"))
     check(app.page.is_disabled("[data-act=cal-reload]"), "Reload")
     check(app.page.is_enabled("[data-act=publish]"), "Publish still works")
-    app.page.focus("[data-card='PCAP-441|dev'][data-part='0']")
+    app.page.focus("[data-card='NWD-441|dev'][data-part='0']")
     app.page.keyboard.press("ArrowUp")
     app.settle()
-    check(card_lane(app, "PCAP-441|dev") == "marc", "keyboard move refused")
-    check(app.page.evaluate("() => SCP.tabs.calendar.move('PCAP-441|dev', 'lorenzo', 12)") is False and card_lane(app, "PCAP-441|dev") == "marc", "move refused")
+    check(card_lane(app, "NWD-441|dev") == "marc", "keyboard move refused")
+    check(app.page.evaluate("() => SCP.tabs.calendar.move('NWD-441|dev', 'lorenzo', 12)") is False and card_lane(app, "NWD-441|dev") == "marc", "move refused")
     check((app.page.get_attribute("[data-test=verdict]", "data-status"), badge(app, "marc")) == before, "same as at start")
 
 
@@ -201,15 +201,15 @@ def _(app):
     start_and_lock(app)
     issues = app.fixture("issues")
     for i in issues["2600"]:
-        if i["key"] == "PCAP-421":
+        if i["key"] == "NWD-421":
             i["sp"] = 13                                           # grooming after the start
     app.set_fixture("issues", issues)
     app.reload()
     app.tab(CALENDAR)
     check(badge(app, "marc") == "10.8 / 8.8" and app.text("[data-test=dev-fit]") == "28.8 / 33.5 MD", (badge(app, "marc"), app.text("[data-test=dev-fit]")))
-    app.page.click("[data-card='PCAP-421|dev'][data-part='0']")
+    app.page.click("[data-card='NWD-421|dev'][data-part='0']")
     app.settle()
-    check("PCAP-421" in app.text("[data-test=selected]"), "cards can still be looked at")
+    check("NWD-421" in app.text("[data-test=selected]"), "cards can still be looked at")
     app.tab(TICKETS)
     check(app.page.is_enabled("[data-act=sprint]"), "the next sprint can still be picked")
 
@@ -264,8 +264,8 @@ def _(app):
     first = page_by_title(app, "Sprint 26 - Squad Orion")[0]
     check(snapshot(app, first["id"])["verdict"]["status"] == "atRisk", "at risk first")
     app.tab(CALENDAR)
-    app.page.evaluate("() => SCP.tabs.calendar.move('PCAP-427|dev', 'lorenzo', 12)")
-    app.page.evaluate("() => SCP.tabs.calendar.move('PCAP-441|dev', 'lorenzo', 14)")
+    app.page.evaluate("() => SCP.tabs.calendar.move('NWD-427|dev', 'lorenzo', 12)")
+    app.page.evaluate("() => SCP.tabs.calendar.move('NWD-441|dev', 'lorenzo', 14)")
     save_plan(app)
     publish(app)
     again = page_by_title(app, "Sprint 26 - Squad Orion")
@@ -365,9 +365,9 @@ def _(app):
     v = app.page.locator("[data-test=view-verdict]")
     check(v.get_attribute("data-status") == "atRisk" and "48.0 MD" in v.inner_text() and "56.9 MD" in v.inner_text() and "10 · 31" in v.inner_text(), v.inner_text())
     marc = app.page.inner_text(".scpv-row[data-person=Marc]")
-    check("PCAP-421 · 7.2" in marc and "PCAP-441 · 1.8" in marc and "10.8 / 8.8 · 122%" in marc, marc)
+    check("NWD-421 · 7.2" in marc and "NWD-441 · 1.8" in marc and "10.8 / 8.8 · 122%" in marc, marc)
     un = app.page.inner_text(".scpv-row[data-person='']")
-    check("PCAP-441 · 1.2" in un and "PCAP-444 · no SP" in un and "1.2 MD" in un, un)
+    check("NWD-441 · 1.2" in un and "NWD-444 · no SP" in un and "1.2 MD" in un, un)
     check("Mon 4 – Fri 22 Jan 2027 · 15 working days" in app.text("[data-test=view-sub]"), app.text("[data-test=view-sub]"))
     check("Snapshot published by Shripathi Raman Radhakrishnan" in app.text("[data-test=view-published]"), app.text("[data-test=view-published]"))
 

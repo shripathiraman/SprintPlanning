@@ -57,7 +57,7 @@ def _(app):
     app.open("ok")
     check(app.page.evaluate("() => window.SCP.settings.jiraServer") == "", "no server configured")
     check(app.page.evaluate("() => window.SCP.jira.server.id") == "mock-link", "link id discovered")
-    check(app.page.evaluate("() => window.SCP.jira.browseUrl('PCAP-1')") == "https://jira.northwind.example/browse/PCAP-1", "browse URL from the link")
+    check(app.page.evaluate("() => window.SCP.jira.browseUrl('NWD-1')") == "https://jira.northwind.example/browse/NWD-1", "browse URL from the link")
 
 
 @test("US-01 Proxy wants Jira's full URL: the planner switches path form and connects")
@@ -83,7 +83,7 @@ def _(app):
 
 @test("US-01 Test connection needs no project and does not check one (FR-1)")
 def _(app):
-    app.open("noperm")                      # no rights on PCAP, but the link and the user are fine
+    app.open("noperm")                      # no rights on NWD, but the link and the user are fine
     check(tabs_enabled(app), "connection passes without a project check")
     calls = app.page.evaluate("() => window.SCP_MOCK.calls")
     check("/rest/api/2/myself" in calls and not any(c.startswith("/rest/api/2/project") for c in calls), calls)
@@ -108,32 +108,32 @@ def fetch(app, key):
 @test("US-02 AC-1 Type a key, click Fetch from Jira: boards, Team values, issue types and sprints load")
 def _(app):
     app.open("ok")
-    check(app.page.get_attribute("[data-act=project-key]", "placeholder") == "e.g. PCAP", "text field")
+    check(app.page.get_attribute("[data-act=project-key]", "placeholder") == "e.g. NWD", "text field")
     check(app.page.locator("select[data-act=project]").count() == 0, "no project dropdown any more")
     check(app.page.is_disabled("[data-act=fetch]"), "Fetch disabled while the key is empty")
     check(app.page.locator("[data-test=sprints]").count() == 0, "nothing fetched yet")
-    fetch(app, "PCAP")
+    fetch(app, "NWD")
     app.page.wait_for_selector("[data-test=sprints]")
     boards = app.page.eval_on_selector("[data-act=board]", "s => [...s.options].map(o => o.text)")
-    check(boards == ["PCAP Scrum board", "PCAP Kanban"], boards)
-    check(app.page.eval_on_selector("[data-act=board]", "s => s.selectedOptions[0].text") == "PCAP Scrum board", "scrum board pre-selected")
+    check(boards == ["NWD Scrum board", "NWD Kanban"], boards)
+    check(app.page.eval_on_selector("[data-act=board]", "s => s.selectedOptions[0].text") == "NWD Scrum board", "scrum board pre-selected")
     teams = app.page.eval_on_selector("[data-act=team]", "s => [...s.options].map(o => o.text)")
     check("Squad Orion" in teams and "Squad Vega" in teams, teams)
     types = app.text("[data-test=issuetypes]")
     for t in ["Story", "Bug", "Task", "Sub-task", "Epic"]:
         check(t in types, "missing issue type " + t)
     check("4 sprints" in app.text("[data-test=sprints]"), app.text("[data-test=sprints]"))
-    check("PCAP \u00b7 Private Capital" in app.text("[data-test=project-name]"), "project name shown")
+    check("NWD \u00b7 Northwind Orders" in app.text("[data-test=project-name]"), "project name shown")
 
 
 @test("US-02 The key is upper-cased as typed; Enter fetches too")
 def _(app):
     app.open("ok")
-    app.page.type("[data-act=project-key]", "pcap")
-    check(app.page.input_value("[data-act=project-key]") == "PCAP", app.page.input_value("[data-act=project-key]"))
+    app.page.type("[data-act=project-key]", "nwd")
+    check(app.page.input_value("[data-act=project-key]") == "NWD", app.page.input_value("[data-act=project-key]"))
     app.page.press("[data-act=project-key]", "Enter")
     app.page.wait_for_selector("[data-test=sprints]")
-    check(app.state("S.config.jira.projectKey") == "PCAP", "fetched")
+    check(app.state("S.config.jira.projectKey") == "NWD", "fetched")
 
 
 @test("US-02 AC-4 Unknown key: 'not found, or you lack Browse Projects', nothing loads")
@@ -149,9 +149,9 @@ def _(app):
 @test("US-02 AC-4 No Browse Projects on the key: the same message (Jira cannot tell them apart)")
 def _(app):
     app.open("noperm")
-    fetch(app, "PCAP")
+    fetch(app, "NWD")
     app.page.wait_for_selector("[data-test=project-error]")
-    check("PCAP was not found, or you lack the Browse Projects permission" in app.text("[data-test=project-error]"),
+    check("NWD was not found, or you lack the Browse Projects permission" in app.text("[data-test=project-error]"),
           app.text("[data-test=project-error]"))
     check(app.page.locator("[data-test=sprints]").count() == 0, "nothing loaded")
 
@@ -168,7 +168,7 @@ def _(app):
     app.page.click("[data-act=save-config]")
     app.page.wait_for_selector("[data-test=save-errors]")
     check("click Fetch from Jira before saving" in app.text("[data-test=save-errors]"), app.text("[data-test=save-errors]"))
-    check(app.attachment("scp-config.json")["jira"]["projectKey"] == "PCAP", "nothing overwritten")
+    check(app.attachment("scp-config.json")["jira"]["projectKey"] == "NWD", "nothing overwritten")
     app.page.click("[data-act=fetch]")
     app.page.wait_for_selector("[data-test=issuetypes] >> text=Incident")
     app.settle(300)
@@ -181,7 +181,7 @@ def _(app):
 def _(app):
     app.open("ok", attachments=att("scp-config.json", saved_config()))
     app.page.wait_for_selector("[data-test=sprints]")
-    check(app.page.input_value("[data-act=project-key]") == "PCAP", "saved key shown")
+    check(app.page.input_value("[data-act=project-key]") == "NWD", "saved key shown")
     check(app.state("S.config.jira.boardId") == 41 and app.state("S.config.jira.issueTypes") == ["Story", "Bug"], "saved values kept")
     check(app.state("S.config.jira.team") == "Squad Orion", "team kept")
 
@@ -367,7 +367,7 @@ def _(app):
     app.page.press("[data-focus=th-over]", "Tab")
     app.page.click("[data-act=weekday][data-day='6']")       # add Saturday
     app.settle()
-    fetch(app, "PCAP")
+    fetch(app, "NWD")
     app.page.wait_for_selector("[data-test=sprints]")
     app.page.select_option("[data-act=team]", "Squad Orion")
     app.page.check("[data-act=issuetype][value=Story]")

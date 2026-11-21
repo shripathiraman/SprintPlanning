@@ -212,7 +212,7 @@
   var FLAG_LONG = { noSp: 'no Story Points', outside: 'SP outside bands', noDev: 'no Contributor', noBa: 'no Backup Assignee' };
   var FLAG_SHORT = { noSp: 'no Story Points', outside: 'SP outside bands', noDev: 'no Dev', noBa: 'no BA' };
 
-  /** "PCAP-441 no Backup Assignee", "PCAP-444 no Story Points, no Dev, no BA (0 MD)" */
+  /** "NWD-441 no Backup Assignee", "NWD-444 no Story Points, no Dev, no BA (0 MD)" */
   function flagText(t, m) {
     var dict = m.flags.length === 1 ? FLAG_LONG : FLAG_SHORT;
     return t.key + ' ' + m.flags.map(function (f) { return dict[f]; }).join(', ') + (m.total === 0 ? ' (0 MD)' : '');

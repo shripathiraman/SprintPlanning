@@ -59,7 +59,7 @@ def _(app):
     start(app)
     open_plan(app)
     check(app.text("[data-test=plan-title]") == "Sprint 26 · Squad Orion", app.text("[data-test=plan-title]"))
-    check(app.text("[data-test=goal]") == "Capital call fee lines live for all GP clients", app.text("[data-test=goal]"))
+    check(app.text("[data-test=goal]") == "Delivery fee lines live for all store customers", app.text("[data-test=goal]"))
     check(app.text("[data-test=dates]") == "Mon 4 – Fri 22 Jan 2027", app.text("[data-test=dates]"))
     check(app.text("[data-test=working-days]") == "15", app.text("[data-test=working-days]"))
 
@@ -124,9 +124,9 @@ def _(app):
     open_plan(app)
     heads = app.page.eval_on_selector_all("[data-test=tickets] thead th", "e => e.map(x => x.innerText)")
     check(heads == ["Ticket", "Summary", "Type", "Contributor (Dev)", "Backup Assignee (BA)", "SP", "Total MD", "Dev MD", "BA MD"], heads)
-    r = row(app, "PCAP-412").split("\t")
-    check([x.strip() for x in r] == ["PCAP-412", "Capital call notice — new fee line", "Story", "Lorenzo", "Gabriela", "5", "8.0", "4.8", "3.2"], r)
-    r = [x.strip() for x in row(app, "PCAP-421").split("\t")]
+    r = row(app, "NWD-412").split("\t")
+    check([x.strip() for x in r] == ["NWD-412", "Order confirmation email — new fee line", "Story", "Lorenzo", "Gabriela", "5", "8.0", "4.8", "3.2"], r)
+    r = [x.strip() for x in row(app, "NWD-421").split("\t")]
     check(r[3:] == ["Marc", "Gabriela", "8", "12.0", "7.2", "4.8"], r)
 
 
@@ -144,8 +144,8 @@ def _(app):
 def _(app):
     start(app)
     open_plan(app)
-    a = app.page.locator("[data-test=tickets] tr[data-key='PCAP-412'] a")
-    check(a.get_attribute("href") == "https://jira.northwind.example/browse/PCAP-412", a.get_attribute("href"))
+    a = app.page.locator("[data-test=tickets] tr[data-key='NWD-412'] a")
+    check(a.get_attribute("href") == "https://jira.northwind.example/browse/NWD-412", a.get_attribute("href"))
     check(a.get_attribute("target") == "_blank", "opens in a new tab")
 
 
@@ -153,7 +153,7 @@ def _(app):
 def _(app):
     start(app)
     open_plan(app)
-    check("PCAP-450" not in app.text("[data-test=tickets]") and "PCAP-460" not in app.text("[data-test=tickets]"), "Task / Vega filtered")
+    check("NWD-450" not in app.text("[data-test=tickets]") and "NWD-460" not in app.text("[data-test=tickets]"), "Task / Vega filtered")
     check('cf[11200] = "Squad Orion"' in app.page.evaluate("() => window.SCP_MOCK.lastJql"), "team filter in JQL")
     app.tab("Config")
     app.page.uncheck("[data-act=issuetype][value=Bug]")
@@ -162,7 +162,7 @@ def _(app):
     app.page.click("[data-act=reload]")
     app.page.wait_for_selector("[data-test=changes]")
     t = app.text("[data-test=tickets]")
-    check("PCAP-427" not in t and "PCAP-441" not in t, "Bug tickets still listed")
+    check("NWD-427" not in t and "NWD-441" not in t, "Bug tickets still listed")
     check(app.page.locator("[data-test=tickets] tbody tr").count() == 8, "8 stories")
     check('issuetype in ("Story")' in app.page.evaluate("() => window.SCP_MOCK.lastJql"), app.page.evaluate("() => window.SCP_MOCK.lastJql"))
 
@@ -173,10 +173,10 @@ def _(app):
 def _(app):
     start(app)
     open_plan(app)
-    tr = app.page.locator("[data-test=tickets] tr[data-key='PCAP-444']")
+    tr = app.page.locator("[data-test=tickets] tr[data-key='NWD-444']")
     check("is-flagged" in tr.get_attribute("class"), "row flagged")
-    check([cell(app, "PCAP-444", c) for c in ["total", "devmd", "bamd"]] == ["0.0", "0.0", "0.0"], "0 MD")
-    check(cell(app, "PCAP-444", "sp") == "⚠ —", cell(app, "PCAP-444", "sp"))
+    check([cell(app, "NWD-444", c) for c in ["total", "devmd", "bamd"]] == ["0.0", "0.0", "0.0"], "0 MD")
+    check(cell(app, "NWD-444", "sp") == "⚠ —", cell(app, "NWD-444", "sp"))
     # The greyed card in the Unassigned lane is tested with US-16.
 
 
@@ -184,22 +184,22 @@ def _(app):
 def _(app):
     start(app)
     open_plan(app)
-    check(cell(app, "PCAP-441", "dev") == "Marc", cell(app, "PCAP-441", "dev"))
-    check(cell(app, "PCAP-441", "devmd") == "1.8" and cell(app, "PCAP-441", "bamd") == "1.2", "MD kept")
-    check("Missing → Unassigned" in cell(app, "PCAP-441", "ba"), cell(app, "PCAP-441", "ba"))
+    check(cell(app, "NWD-441", "dev") == "Marc", cell(app, "NWD-441", "dev"))
+    check(cell(app, "NWD-441", "devmd") == "1.8" and cell(app, "NWD-441", "bamd") == "1.2", "MD kept")
+    check("Missing → Unassigned" in cell(app, "NWD-441", "ba"), cell(app, "NWD-441", "ba"))
 
 
 @test("US-09 AC-3 SP 13 with bands only up to 8: 'SP outside bands' and 0 MD")
 def _(app):
     cfg = saved_config(bands=saved_config()["bands"][:5])
     app.open("ok", attachments=att("scp-config.json", cfg))
-    with_issue(app, "PCAP-421", sp=13)
+    with_issue(app, "NWD-421", sp=13)
     app.reload()
     app.page.wait_for_function("() => window.SCP.state.jira.sprints.length > 0")
     app.tab(TICKETS)
     open_plan(app)
-    check(cell(app, "PCAP-421", "total") == "0.0", cell(app, "PCAP-421", "total"))
-    check("PCAP-421 SP outside bands (0 MD)" in app.text("[data-test=flags]"), app.text("[data-test=flags]"))
+    check(cell(app, "NWD-421", "total") == "0.0", cell(app, "NWD-421", "total"))
+    check("NWD-421 SP outside bands (0 MD)" in app.text("[data-test=flags]"), app.text("[data-test=flags]"))
 
 
 @test("US-09 AC-4 The summary states how many tickets are flagged and why")
@@ -208,7 +208,7 @@ def _(app):
     open_plan(app)
     t = app.text("[data-test=flags]")
     check("2 tickets flagged — fix in Jira, then reload" in t, t)
-    check("PCAP-441 no Backup Assignee" in t and "PCAP-444 no Story Points, no Dev, no BA (0 MD)" in t, t)
+    check("NWD-441 no Backup Assignee" in t and "NWD-444 no Story Points, no Dev, no BA (0 MD)" in t, t)
 
 
 # ---------------------------------------------------------------- US-10
@@ -217,20 +217,20 @@ def _(app):
 def _(app):
     start(app)
     open_plan(app)
-    sel = app.page.locator("[data-act=pick][data-key='PCAP-418'][data-role=dev]")
+    sel = app.page.locator("[data-act=pick][data-key='NWD-418'][data-role=dev]")
     check(sel.eval_on_selector_all("option", "o => o.map(x => x.text)") if False else
-          app.page.eval_on_selector("[data-act=pick][data-key='PCAP-418']", "s => [...s.options].map(o => o.text)") == ["Priya", "Marc"], "options")
-    check(app.page.eval_on_selector("[data-act=pick][data-key='PCAP-418']", "s => s.selectedOptions[0].text") == "Priya", "default first")
+          app.page.eval_on_selector("[data-act=pick][data-key='NWD-418']", "s => [...s.options].map(o => o.text)") == ["Priya", "Marc"], "options")
+    check(app.page.eval_on_selector("[data-act=pick][data-key='NWD-418']", "s => s.selectedOptions[0].text") == "Priya", "default first")
     t = app.text("[data-test=multi]")
-    check("1 ticket has more than one" in t and "PCAP-418 lists Priya and Marc · planned on Priya (first listed)" in t, t)
-    check(app.page.locator("[data-test=flags] >> text=PCAP-418").count() == 0, "not flagged")
+    check("1 ticket has more than one" in t and "NWD-418 lists Priya and Marc · planned on Priya (first listed)" in t, t)
+    check(app.page.locator("[data-test=flags] >> text=NWD-418").count() == 0, "not flagged")
 
 
 @test("US-10 AC-2 Pick B, save, reload: still planned on B")
 def _(app):
     start(app)
     open_plan(app)
-    app.page.select_option("[data-act=pick][data-key='PCAP-418']", "marc")
+    app.page.select_option("[data-act=pick][data-key='NWD-418']", "marc")
     app.settle()
     check(app.page.is_visible("[data-test=unsaved]"), "dirty")
     check("planned on Marc (your choice)" in app.text("[data-test=multi]"), app.text("[data-test=multi]"))
@@ -238,26 +238,26 @@ def _(app):
     app.page.wait_for_selector(".scp-notice >> text=Plan saved")
     app.reload()
     app.tab(TICKETS)
-    check(app.page.eval_on_selector("[data-act=pick][data-key='PCAP-418']", "s => s.selectedOptions[0].text") == "Marc", "kept after reload")
+    check(app.page.eval_on_selector("[data-act=pick][data-key='NWD-418']", "s => s.selectedOptions[0].text") == "Marc", "kept after reload")
     app.page.click("[data-act=reload]")                       # also survives Reload from Jira
     app.page.wait_for_selector("[data-test=changes]")
-    check(app.page.eval_on_selector("[data-act=pick][data-key='PCAP-418']", "s => s.selectedOptions[0].text") == "Marc", "kept after Reload")
+    check(app.page.eval_on_selector("[data-act=pick][data-key='NWD-418']", "s => s.selectedOptions[0].text") == "Marc", "kept after Reload")
 
 
 @test("US-10 AC-3 B removed in Jira: ticket returns to A and Reload lists the change")
 def _(app):
     start(app)
     open_plan(app)
-    app.page.select_option("[data-act=pick][data-key='PCAP-418']", "marc")
+    app.page.select_option("[data-act=pick][data-key='NWD-418']", "marc")
     app.settle()
     app.page.click("[data-act=save-plan]")
     app.page.wait_for_selector(".scp-notice >> text=Plan saved")
-    with_issue(app, "PCAP-418", dev=["priya", "lorenzo"])
+    with_issue(app, "NWD-418", dev=["priya", "lorenzo"])
     app.page.click("[data-act=reload]")
     app.page.wait_for_selector("[data-test=changes]")
-    check(app.page.eval_on_selector("[data-act=pick][data-key='PCAP-418']", "s => s.selectedOptions[0].text") == "Priya", "back to A")
+    check(app.page.eval_on_selector("[data-act=pick][data-key='NWD-418']", "s => s.selectedOptions[0].text") == "Priya", "back to A")
     t = app.text("[data-test=changes]")
-    check("PCAP-418 Marc no longer in Contributor → back to Priya" in t, t)
+    check("NWD-418 Marc no longer in Contributor → back to Priya" in t, t)
 
 
 # ---------------------------------------------------------------- US-11
@@ -268,13 +268,13 @@ def _(app):
     open_plan(app, save=True)
     first_load = app.state("S.plan.loadedAt")
     issues = app.fixture("issues")
-    issues["2600"] = [i for i in issues["2600"] if i["key"] != "PCAP-438"]
+    issues["2600"] = [i for i in issues["2600"] if i["key"] != "NWD-438"]
     for i in issues["2600"]:
-        if i["key"] == "PCAP-421":
+        if i["key"] == "NWD-421":
             i["sp"] = 5
-        if i["key"] == "PCAP-427":
+        if i["key"] == "NWD-427":
             i["ba"] = ["gabriela"]
-    issues["2600"].append({"key": "PCAP-446", "summary": "New late ticket", "type": "Story", "team": "Squad Orion",
+    issues["2600"].append({"key": "NWD-446", "summary": "New late ticket", "type": "Story", "team": "Squad Orion",
                            "sp": 1, "dev": ["priya"], "ba": ["karthik"]})
     app.set_fixture("issues", issues)
     app.page.click("[data-act=reload]")
@@ -282,7 +282,7 @@ def _(app):
     t = app.text("[data-test=changes]")
     when = app.page.evaluate("iso => window.SCP.ui.fmtWhen(iso)", first_load)
     check("Changed since last load (" + when + ")" in t, t)
-    for c in ["PCAP-421 SP 8 → 5", "− PCAP-438 removed", "+ PCAP-446 added", "PCAP-427 BA Karthik → Gabriela"]:
+    for c in ["NWD-421 SP 8 → 5", "− NWD-438 removed", "+ NWD-446 added", "NWD-427 BA Karthik → Gabriela"]:
         check(c in t, "missing change '%s' in: %s" % (c, t))
     check(app.page.is_visible("[data-test=unsaved]"), "reload result needs Save plan")
 
@@ -301,14 +301,14 @@ def _(app):
     start(app)
     open_plan(app)
     app.page.evaluate("""() => { window.SCP.state.plan.cards = [
-        { key: 'PCAP-438', role: 'dev', person: 'lorenzo' }, { key: 'PCAP-412', role: 'dev', person: 'lorenzo' }]; }""")
+        { key: 'NWD-438', role: 'dev', person: 'lorenzo' }, { key: 'NWD-412', role: 'dev', person: 'lorenzo' }]; }""")
     issues = app.fixture("issues")
-    issues["2600"] = [i for i in issues["2600"] if i["key"] != "PCAP-438"]
+    issues["2600"] = [i for i in issues["2600"] if i["key"] != "NWD-438"]
     app.set_fixture("issues", issues)
     app.page.click("[data-act=reload]")
     app.page.wait_for_selector("[data-test=changes]")
-    check(app.state("S.plan.cards.map(c => c.key)") == ["PCAP-412"], app.state("S.plan.cards"))
-    check("PCAP-438" not in app.text("[data-test=tickets]"), "row gone")
+    check(app.state("S.plan.cards.map(c => c.key)") == ["NWD-412"], app.state("S.plan.cards"))
+    check("NWD-438" not in app.text("[data-test=tickets]"), "row gone")
 
 
 @test("US-11 AC-3 (Tab 1 part) Sprint end moved earlier: change listed, working days recalculated")

@@ -163,7 +163,7 @@ def _(app):
                   "priya": ("9.6 · 81%", "ok"), "gabriela": ("10.4 · 87%", "ok"),
                   "karthik": ("7.6 · 66%", "under")}, got)
     check(app.page.inner_text("[data-test=capacity-total] [data-col=planned]") == "48.0 · 84%",
-          "sprint total includes the 1.2 MD unassigned BA half of PCAP-441")
+          "sprint total includes the 1.2 MD unassigned BA half of NWD-441")
 
 
 @test("US-15 Changes in Tab 2 recalculate Tab 3 straight away")

@@ -15,7 +15,7 @@ def saved_config(**over):
     """A saved scp-config.json for Squad Orion, as the Config screen shows it."""
     cfg = {
         "schemaVersion": 1,
-        "jira": {"projectKey": "PCAP", "projectName": "Private Capital", "boardId": 41, "boardName": "PCAP Scrum board",
+        "jira": {"projectKey": "NWD", "projectName": "Northwind Orders", "boardId": 41, "boardName": "NWD Scrum board",
                  "team": "Squad Orion", "issueTypes": ["Story", "Bug"]},
         "fields": {
             "dev": {"id": "customfield_10412", "name": "Contributor", "type": "Multi-user picker", "custom": True},

@@ -414,7 +414,7 @@
       '<div class="scp-card__head"><h2>Project &amp; team</h2>' +
       (J().loading.project ? '<span class="scp-muted">Loading from Jira\u2026</span>' : '') + '</div>' +
       '<div class="scp-field"><span>Project key</span><div class="scp-inline">' +
-      '<input class="scp-input scp-input--key" data-act="project-key" data-focus="project-key" value="' + ui.esc(typed) + '" placeholder="e.g. PCAP"' +
+      '<input class="scp-input scp-input--key" data-act="project-key" data-focus="project-key" value="' + ui.esc(typed) + '" placeholder="e.g. NWD"' +
       ' autocomplete="off" spellcheck="false" aria-label="Jira project key"' + (on ? '' : ' disabled') + '>' +
       '<button type="button" class="scp-btn" data-act="fetch"' + (on && typed && !J().loading.project ? '' : ' disabled') + '>Fetch from Jira</button>' +
       '</div>' + keyHint + '</div>' +

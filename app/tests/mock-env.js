@@ -30,26 +30,26 @@
   var FIX = MOCK.fixtures = {
     myself: { name: 'sraman', displayName: 'Shripathi Raman Radhakrishnan' },
     projects: [
-      { key: 'PCAP', name: 'Private Capital' },
+      { key: 'NWD', name: 'Northwind Orders' },
       { key: 'TC316', name: 'Release Coordination' }
     ],
     project: {
-      PCAP: { key: 'PCAP', name: 'Private Capital', issueTypes: [
+      NWD: { key: 'NWD', name: 'Northwind Orders', issueTypes: [
         { name: 'Story', subtask: false }, { name: 'Bug', subtask: false }, { name: 'Task', subtask: false },
         { name: 'Sub-task', subtask: true }, { name: 'Epic', subtask: false }] },
       TC316: { key: 'TC316', name: 'Release Coordination', issueTypes: [
         { name: 'Story', subtask: false }, { name: 'Incident', subtask: false }] }
     },
     boards: {
-      PCAP: [{ id: 41, name: 'PCAP Scrum board', type: 'scrum' }, { id: 42, name: 'PCAP Kanban', type: 'kanban' }],
+      NWD: [{ id: 41, name: 'NWD Scrum board', type: 'scrum' }, { id: 42, name: 'NWD Kanban', type: 'kanban' }],
       TC316: [{ id: 77, name: 'TC316 board', type: 'scrum' }]
     },
     sprints: {
       41: [
         { id: 2400, name: 'Sprint 24', state: 'closed', startDate: '2026-11-16T09:00:00.000+01:00', endDate: '2026-12-04T18:00:00.000+01:00' },
         { id: 2500, name: 'Sprint 25', state: 'active', startDate: '2026-12-07T09:00:00.000+01:00', endDate: '2026-12-31T18:00:00.000+01:00' },
-        { id: 2600, name: 'Sprint 26', state: 'future', startDate: '2027-01-04T09:00:00.000+01:00', endDate: '2027-01-22T18:00:00.000+01:00', goal: 'Capital call fee lines live for all GP clients' },
-        { id: 2700, name: 'Sprint 27', state: 'future', startDate: '2027-01-25T09:00:00.000+01:00', endDate: '2027-02-12T18:00:00.000+01:00', goal: 'Investor portal exports' }
+        { id: 2600, name: 'Sprint 26', state: 'future', startDate: '2027-01-04T09:00:00.000+01:00', endDate: '2027-01-22T18:00:00.000+01:00', goal: 'Delivery fee lines live for all store customers' },
+        { id: 2700, name: 'Sprint 27', state: 'future', startDate: '2027-01-25T09:00:00.000+01:00', endDate: '2027-02-12T18:00:00.000+01:00', goal: 'Customer portal exports' }
       ],
       42: [],
       77: [{ id: 9100, name: 'TC316 Sprint 3', state: 'future', startDate: '2027-01-04T09:00:00.000+01:00', endDate: '2027-01-15T18:00:00.000+01:00' }]
@@ -71,21 +71,21 @@
        plus tickets the filters must drop: a Task, and a ticket of Squad Vega. */
     issues: {
       2600: [
-        { key: 'PCAP-412', summary: 'Capital call notice \u2014 new fee line', type: 'Story', team: 'Squad Orion', sp: 5, dev: ['lorenzo'], ba: ['gabriela'] },
-        { key: 'PCAP-418', summary: 'Investor portal: distribution PDF export', type: 'Story', team: 'Squad Orion', sp: 5, dev: ['priya', 'marc'], ba: ['karthik'] },
-        { key: 'PCAP-421', summary: 'NAV upload validation rules', type: 'Story', team: 'Squad Orion', sp: 8, dev: ['marc'], ba: ['gabriela'] },
-        { key: 'PCAP-427', summary: 'Fix rounding on commitment report', type: 'Bug', team: 'Squad Orion', sp: 2, dev: ['marc'], ba: ['karthik'] },
-        { key: 'PCAP-430', summary: 'Onboarding checklist: KYC status column', type: 'Story', team: 'Squad Orion', sp: 3, dev: ['priya'], ba: ['gabriela'] },
-        { key: 'PCAP-433', summary: 'Fund-level FX rate override', type: 'Story', team: 'Squad Orion', sp: 3, dev: ['lorenzo'], ba: ['karthik'] },
-        { key: 'PCAP-435', summary: 'Audit log for user role changes', type: 'Story', team: 'Squad Orion', sp: 2, dev: ['priya'], ba: ['karthik'] },
-        { key: 'PCAP-438', summary: 'Email template for drawdown reminders', type: 'Story', team: 'Squad Orion', sp: 1, dev: ['lorenzo'], ba: ['gabriela'] },
-        { key: 'PCAP-441', summary: 'Duplicate investor on import', type: 'Bug', team: 'Squad Orion', sp: 2, dev: ['marc'], ba: [] },
-        { key: 'PCAP-444', summary: 'Spike: eFront feed latency', type: 'Story', team: 'Squad Orion', sp: null, dev: [], ba: [] },
-        { key: 'PCAP-450', summary: 'Upgrade build agents', type: 'Task', team: 'Squad Orion', sp: 3, dev: ['lorenzo'], ba: ['gabriela'] },
-        { key: 'PCAP-460', summary: 'Vega squad ticket', type: 'Story', team: 'Squad Vega', sp: 5, dev: ['chloe'], ba: ['gabriela'] }
+        { key: 'NWD-412', summary: 'Order confirmation email \u2014 new fee line', type: 'Story', team: 'Squad Orion', sp: 5, dev: ['lorenzo'], ba: ['gabriela'] },
+        { key: 'NWD-418', summary: 'Customer portal: invoice PDF export', type: 'Story', team: 'Squad Orion', sp: 5, dev: ['priya', 'marc'], ba: ['karthik'] },
+        { key: 'NWD-421', summary: 'Price list upload validation rules', type: 'Story', team: 'Squad Orion', sp: 8, dev: ['marc'], ba: ['gabriela'] },
+        { key: 'NWD-427', summary: 'Fix rounding on sales report', type: 'Bug', team: 'Squad Orion', sp: 2, dev: ['marc'], ba: ['karthik'] },
+        { key: 'NWD-430', summary: 'Onboarding checklist: address check column', type: 'Story', team: 'Squad Orion', sp: 3, dev: ['priya'], ba: ['gabriela'] },
+        { key: 'NWD-433', summary: 'Store-level FX rate override', type: 'Story', team: 'Squad Orion', sp: 3, dev: ['lorenzo'], ba: ['karthik'] },
+        { key: 'NWD-435', summary: 'Audit log for user role changes', type: 'Story', team: 'Squad Orion', sp: 2, dev: ['priya'], ba: ['karthik'] },
+        { key: 'NWD-438', summary: 'Email template for payment reminders', type: 'Story', team: 'Squad Orion', sp: 1, dev: ['lorenzo'], ba: ['gabriela'] },
+        { key: 'NWD-441', summary: 'Duplicate customer on import', type: 'Bug', team: 'Squad Orion', sp: 2, dev: ['marc'], ba: [] },
+        { key: 'NWD-444', summary: 'Spike: warehouse feed latency', type: 'Story', team: 'Squad Orion', sp: null, dev: [], ba: [] },
+        { key: 'NWD-450', summary: 'Upgrade build agents', type: 'Task', team: 'Squad Orion', sp: 3, dev: ['lorenzo'], ba: ['gabriela'] },
+        { key: 'NWD-460', summary: 'Vega squad ticket', type: 'Story', team: 'Squad Vega', sp: 5, dev: ['chloe'], ba: ['gabriela'] }
       ],
       2700: [
-        { key: 'PCAP-470', summary: 'Investor export v2', type: 'Story', team: 'Squad Orion', sp: 3, dev: ['lorenzo'], ba: ['gabriela'] }
+        { key: 'NWD-470', summary: 'Customer export v2', type: 'Story', team: 'Squad Orion', sp: 3, dev: ['lorenzo'], ba: ['gabriela'] }
       ]
     }
   };
