@@ -54,12 +54,12 @@ def as_attachments(app, settings=None, wait=True):
 def _(app):
     saved(app)
     app.page.evaluate("() => localStorage.setItem('scp-mock-xsrf', 'nocheck')")
-    app.page.evaluate("() => { window.SCP.state.planDirty = true; window.SCP.app.render(); }")
+    app.page.evaluate("() => { window.SCP.state.planDirty = true; window.SCP.app.render(); window.SCP.app.notice('', ''); }")
     app.page.click("[data-act=save-plan]")
     app.page.wait_for_selector(".scp-notice >> text=Plan saved")
     first = posts(app, "/child/attachment")
     check(len(first) == 2, "one refused try and one retry: %s" % first)
-    app.page.evaluate("() => { window.SCP.state.planDirty = true; window.SCP.app.render(); }")
+    app.page.evaluate("() => { window.SCP.state.planDirty = true; window.SCP.app.render(); window.SCP.app.notice('', ''); }")
     app.page.click("[data-act=save-plan]")
     app.page.wait_for_selector(".scp-notice >> text=Plan saved")
     check(len(posts(app, "/child/attachment")) == 3, "second save sent once: the spelling was remembered")
@@ -90,16 +90,14 @@ def _(app):
 
 # ---- 2. Versions on file addresses ----------------------------------------------------
 
-@test("RI-2 Each planner file is loaded from the page with its attachment version in the address")
+@test("RI-2 The two shipped files, scp-planner.css and scp-planner.js, load from the page with their attachment versions")
 def _(app):
     app.open("ok")
-    app.page.evaluate("""() => localStorage.setItem('scp-mock-code', JSON.stringify({ 'scp-app.js': 7, 'scp-planner.css': 3 }))""")
+    app.page.evaluate("""() => localStorage.setItem('scp-mock-code', JSON.stringify({ 'scp-planner.js': 7, 'scp-planner.css': 3 }))""")
     as_attachments(app)
     urls = app.page.evaluate("() => window.SCP.loader.urls")
-    check(len(urls) == 11, urls)
-    check("/download/attachments/900001/scp-app.js?api=v2&v=7" in urls, urls)
-    check("/download/attachments/900001/scp-planner.css?api=v2&v=3" in urls, urls)
-    check("/download/attachments/900001/scp-calc.js?api=v2&v=1" in urls, urls)
+    check(urls == ["/download/attachments/900001/scp-planner.css?api=v2&v=3",
+                   "/download/attachments/900001/scp-planner.js?api=v2&v=7"], urls)
     check("Connected as" in app.text("[data-test=conn-status]"), "the planner started")
 
 
@@ -107,10 +105,10 @@ def _(app):
 def _(app):
     app.open("ok")
     as_attachments(app)
-    first = app.page.evaluate("() => window.SCP.loader.urls.filter(u => u.indexOf('scp-calc.js') !== -1)[0]")
-    app.page.evaluate("""() => localStorage.setItem('scp-mock-code', JSON.stringify({ 'scp-calc.js': 2 }))""")
+    first = app.page.evaluate("() => window.SCP.loader.urls.filter(u => u.indexOf('scp-planner.js') !== -1)[0]")
+    app.page.evaluate("""() => localStorage.setItem('scp-mock-code', JSON.stringify({ 'scp-planner.js': 2 }))""")
     as_attachments(app)
-    second = app.page.evaluate("() => window.SCP.loader.urls.filter(u => u.indexOf('scp-calc.js') !== -1)[0]")
+    second = app.page.evaluate("() => window.SCP.loader.urls.filter(u => u.indexOf('scp-planner.js') !== -1)[0]")
     check(first.endswith("&v=1") and second.endswith("&v=2"), (first, second))
 
 
@@ -222,11 +220,11 @@ def _(app):
 @test("RI-5 A file missing on the page: the message names it, shows HTTP 404 and says to attach it")
 def _(app):
     app.open("ok")
-    app.serve("missing:scp-tab-calendar.js")
+    app.serve("missing:scp-planner.js")
     as_attachments(app, wait=False)
     app.page.wait_for_selector("[data-test=load-error] >> text=NOT loaded", timeout=8000)
     msg = app.text("[data-test=load-error]")
-    check("scp-tab-calendar.js was NOT loaded" in msg and "HTTP 404" in msg and "not attached to page 900001" in msg, msg)
+    check("scp-planner.js was NOT loaded" in msg and "HTTP 404" in msg and "not attached to page 900001" in msg, msg)
 
 
 @test("RI-5 A Confluence that will not serve attachments as code: the message shows the Content-Type and nosniff")
@@ -236,7 +234,7 @@ def _(app):
     as_attachments(app, wait=False)
     app.page.wait_for_selector("[data-test=load-error] >> text=NOT loaded", timeout=8000)
     msg = app.text("[data-test=load-error]")
-    check("scp-calc.js was NOT loaded" in msg and "application/octet-stream" in msg and "nosniff" in msg, msg)
+    check("scp-planner.js was NOT loaded" in msg and "application/octet-stream" in msg and "nosniff" in msg, msg)
     check("will not serve attachments as code" in msg, msg)
     app.errors.clear()   # the browser's own refusal is the point of this test
 

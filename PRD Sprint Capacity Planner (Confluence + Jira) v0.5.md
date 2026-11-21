@@ -1,6 +1,6 @@
 # PRD: Sprint Capacity Planner (Confluence + Jira)
 
-Nov 21, 2026 · @Shripathi Raman R · Status: Draft v0.9
+Nov 21, 2026 · @Shripathi Raman R · Status: Draft v0.10
 
 ## Overview
 
@@ -294,27 +294,38 @@ The platform is settled: Confluence Data Center 10.2.14 and Jira Data Center, bu
 
 ### File Structure
 
-The product is built only from plain HTML, CSS, JavaScript and JSON files, each a separate page attachment: no build step, no outside libraries, no ES modules. Scripts load in the order listed through `<script>` tags and share one global namespace (`window.SCP`). Every file is neatly formatted and commented. A cross-page load (sprint page macro loading the parent page's files) was tested on the target Confluence on 19 Nov 2026.
+The product is built only from plain HTML, CSS, JavaScript and JSON files: no outside libraries, no ES modules. It **ships as three files**, as the Release Impact admin tool does: the macro body `scp-macro.html`, `scp-planner.css` and `scp-planner.js`. The JavaScript is written and tested as ten source files, each a self-contained block sharing one global namespace (`window.SCP`); `build.py` joins them in load order into `scp-planner.js` before each release (Release Impact is built the same way, by `build_confluence_macro.py`). The joined file runs exactly as the ten did, and a test fails when the shipped file does not match the sources, so a forgotten build or a hand edit never reaches Confluence. Every file is neatly formatted and commented. A cross-page load (sprint page macro loading the parent page's files) was tested on the target Confluence on 19 Nov 2026.
+
+**On the Confluence pages** (the first three are shipped; the rest the planner writes itself)
 
 | Page | File | Holds |
 | --- | --- | --- |
-| Planning page (SM and PO only) | `scp-macro.html` | The HTML macro body: a settings block (`scp-settings`: `jiraServer`, and `page`, the page that holds the planner's files, blank = this page), one container, and the loader that loads the files below in order, with their versions, and explains any file that fails to load |
+| Planning page (SM and PO only) | `scp-macro.html` | Pasted into the HTML macro (not an attachment): a settings block (`scp-settings`: `jiraServer`, and `page`, the page that holds `scp-planner.css` and `scp-planner.js`, blank = this page), one container, and the loader that loads the two files with their versions and explains either one that fails to load |
 | Planning page | `scp-planner.css` | All styles for Config and Tabs 1-4 |
-| Planning page | `scp-calc.js` | Calculation Rules only: SP to MD, BA/Dev split, capacity, card length in days, verdict. No DOM or network code, so it can be tested alone against this PRD's worked examples |
-| Planning page | `scp-jira.js` | Every Jira call through the application link (Integration Points) |
-| Planning page | `scp-store.js` | Reading and writing JSON attachments, with the attachment-version check for concurrent saves |
-| Planning page | `scp-tab-config.js`, `scp-tab-tickets.js`, `scp-tab-resources.js`, `scp-tab-capacity.js`, `scp-tab-calendar.js` | One file per tab |
-| Planning page | `scp-publish.js` | Creates or updates the sprint page and its snapshot (FR-29) |
-| Planning page | `scp-app.js` | Start-up, tab switching, Save plan (FR-25); loaded last |
+| Planning page | `scp-planner.js` | All planner code, built by `build.py` from the source files below; never edited by hand |
 | Planning page | `scp-config.json` | Team config: field mapping, SP bands, split, ceremony %, thresholds, locations and holiday calendars |
 | Planning page | `scp-plan.json` | The open plan: resources, leave, availability, dropdown choices, card positions, verdict |
+| Parent page "Sprint plans - \<Squad>" (everyone) | Page body | One sentence naming the squad, written when Publish creates the page |
 | Parent page "Sprint plans - \<Squad>" (everyone) | `scp-view.css`, `scp-view.js` | The read-only viewer, shared by every sprint page; written here by every Publish (its code travels in `scp-publish.js`), not per sprint page |
-| Each sprint page (everyone) | `scp-view-macro.html` | Macro body written by Publish: loads the parent page's viewer files |
+| Each sprint page (everyone) | Page body (not a file) | An HTML macro that Publish writes into the page's content: it loads `scp-view.css` and `scp-view.js` from the parent page |
 | Each sprint page | `scp-snapshot.json` | That sprint's snapshot, without leave dates, availability % or per-person holidays |
+
+`scp-config.json` and `scp-plan.json` are written by Save config and Save plan, and Publish updates them too (the parent page's ID on the first Publish; the published page, time and publisher on every Publish). The parent and sprint page files are written by Publish.
+
+**Source files** (not shipped; joined into `scp-planner.js` by `build.py`, in this order)
+
+| File | Holds |
+| --- | --- |
+| `scp-calc.js` | Calculation Rules only: SP to MD, BA/Dev split, capacity, card length in days, verdict. No DOM or network code, so it can be tested alone against this PRD's worked examples |
+| `scp-jira.js` | Every Jira call through the application link (Integration Points) |
+| `scp-store.js` | Reading and writing JSON attachments, with the attachment-version check for concurrent saves |
+| `scp-tab-config.js`, `scp-tab-tickets.js`, `scp-tab-resources.js`, `scp-tab-capacity.js`, `scp-tab-calendar.js` | One file per tab |
+| `scp-publish.js` | Creates or updates the sprint page and its snapshot (FR-29) |
+| `scp-app.js` | Start-up, tab switching, Save plan (FR-25); last, so it starts everything |
 
 The viewer files must never sit on the planning page: people outside SM and PO cannot download its attachments, so sprint pages would show nothing.
 
-The CSS and JS files may sit on another page named by `page` in the settings block, so several squads' planning pages can share one copy. `scp-config.json` and `scp-plan.json` always stay on the planning page itself.
+`scp-planner.css` and `scp-planner.js` may sit on another page named by `page` in the settings block, so several squads' planning pages can share one copy. `scp-config.json` and `scp-plan.json` always stay on the planning page itself.
 
 ### Integration Points
 
@@ -458,7 +469,7 @@ The platform is settled, so Gate 1 is now about data: the Team field mapped and 
 
 ## Open Questions
 
-No questions open at v0.9. New ones from the pilot SM or the Confluence admin go here.
+No questions open at v0.10. New ones from the pilot SM or the Confluence admin go here.
 
 ### Resolved on 19 Nov 2026
 
@@ -485,7 +496,8 @@ No questions open at v0.9. New ones from the pilot SM or the Confluence admin go
 | Ticket with a Dev but no BA (or the reverse) | Follow the Edge Cases table: the named half is planned with its MD, the missing half goes to Unassigned; only a ticket with no SP is 0 MD |
 | Viewer files on the parent page (20 Nov 2026, v0.8) | Publish writes scp-view.css and scp-view.js to "Sprint plans - \<Squad>" on every Publish; no manual step, and they never sit on the planning page |
 | Half-day leave (20 Nov 2026, v0.7) | A half day is the morning or the afternoon, chosen in the leave grid; both count 0.5 day, and Tab 4 blocks only the half that is off. "Afternoon" rather than "evening": it is the second half of the working day |
-| Confluence safeguards (21 Nov 2026, v0.9) | Built as the Release Impact admin tool: settings block in the macro, file versions in addresses, load errors explained, both XSRF header spellings, styles scoped under the root ID with a reset, in-page dialogs, saving disabled without Add Attachment permission. Kept on purpose: "save anyway" after a conflict (US-20 asks for a warning, not a refusal), and the File Structure's separate files |
+| Confluence safeguards (21 Nov 2026, v0.9) | Built as the Release Impact admin tool: settings block in the macro, file versions in addresses, load errors explained, both XSRF header spellings, styles scoped under the root ID with a reset, in-page dialogs, saving disabled without Add Attachment permission. Kept on purpose: "save anyway" after a conflict (US-20 asks for a warning, not a refusal). The separate files kept here were later joined for shipping (v0.10) |
+| Shipped files (21 Nov 2026, v0.10) | Three files, as the Release Impact admin tool: `scp-macro.html`, `scp-planner.css`, `scp-planner.js`. The JavaScript stays in ten source files and `build.py` joins them before each release; a test checks the shipped file matches the sources. Merging the sources into one file for good was rejected: every later change would sit in one 5,000-line file |
 | Card length on the calendar | Days the work takes at the person's net daily rate, not MD, so overload shows as cards running past the sprint end; cards are exact, only each row's finish is rounded up to half a day |
 
 ## Appendix
@@ -513,6 +525,7 @@ No questions open at v0.9. New ones from the pilot SM or the Confluence admin go
 
 | Version | Date | Author | Changes |
 | --- | --- | --- | --- |
+| 0.10 | 2026-11-21 | Shripathi Raman Radhakrishnan | Ships as three files (`scp-macro.html`, `scp-planner.css`, `scp-planner.js`), as the Release Impact admin tool: File Structure split into shipped files and source files, `build.py` joins the ten JS sources, a test checks the shipped file matches them; `scp-macro.html` row and the `page` setting refer to the two attached files; Resolved decision. 2026-11-21: File Structure corrected: the sprint page's macro is written into the page body, not a file `scp-view-macro.html`; parent page body row added |
 | 0.9 | 2026-11-21 | Shripathi Raman Radhakrishnan | Confluence safeguards from the Release Impact admin tool: settings block (`jiraServer`, `page`) in the macro (FR-1, File Structure); FR-25 saving disabled with a note without Add Attachment permission, questions in an in-page dialog; FR-29 Publish disabled likewise; Constraints list the safeguards; four edge cases; two verification rows; one risk; Resolved decision. 2026-11-21: styles constraint made precise (scoped as the Release Impact main.css, fonts forced; the two kinds of page rule that can still get through named) and the safeguards verification row aligned |
 | 0.8 | 2026-11-20 | Shripathi Raman Radhakrishnan | Epic F as built: FR-29 Publish writes the viewer files to the parent page on every Publish and needs a saved plan; FR-26 sprint state read on every page load, a locked plan still publishes; FR-28 top bar shows whether the planning page is restricted; File Structure parent row and Data Requirements (parent and sprint page IDs kept); Resolved decision |
 | 0.7 | 2026-11-20 | Shripathi Raman Radhakrishnan | Half-day leave is the morning or the afternoon: FR-18; FR-30 click cycle free, Full day, Morning, Afternoon, free with those labels on the grid; FR-23 cards skip only the half that is off; FR-30 verification row; edge case for plans saved before v0.7; Resolved decision |

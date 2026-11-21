@@ -3,3 +3,6 @@
 
 # Local preview with sample data, never committed
 dummy/
+
+# Ship specific folder, never committed
+ship/

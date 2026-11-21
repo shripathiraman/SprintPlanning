@@ -9,7 +9,7 @@
                  default; otherwise the name, address or link id of another
                  Jira linked to this Confluence
     page         "" = this page holds the planner's files (scp-planner.css and
-                 the scp-*.js files). Otherwise the page that holds them: its
+                 scp-planner.js). Otherwise the page that holds them: its
                  id "123456", or its address ".../pages/viewpage.action?pageId=123456",
                  ".../pages/123456/Title" or ".../display/SPACE/Title"
   Keep the quotes and commas, and no comma after the last item.
@@ -60,19 +60,11 @@
     window.SCP = window.SCP || {};
     window.SCP.settings = { jiraServer: String(cfg.jiraServer || '').trim() };
 
-    /* Attachments of the files page, in load order (PRD File Structure). */
+    /* The two planner files attached to the files page (PRD File Structure).
+       scp-planner.js is built by build.py from the source files. */
     var FILES = [
       'scp-planner.css',
-      'scp-calc.js',
-      'scp-jira.js',
-      'scp-store.js',
-      'scp-tab-config.js',
-      'scp-tab-tickets.js',
-      'scp-tab-resources.js',
-      'scp-tab-capacity.js',
-      'scp-tab-calendar.js',
-      'scp-publish.js',
-      'scp-app.js'
+      'scp-planner.js'
     ];
 
     var CTX = meta('ajs-context-path');

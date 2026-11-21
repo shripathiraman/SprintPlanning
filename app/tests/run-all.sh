@@ -5,6 +5,7 @@ set -u
 cd "$(dirname "$0")"
 fail=0
 node test-calc.js || fail=1
+python3 check_build.py || fail=1
 for f in ui_epic_*.py; do
   echo; echo "== $f"
   python3 "$f" || fail=1

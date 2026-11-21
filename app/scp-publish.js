@@ -263,7 +263,7 @@
 
   /**
    * Body of the sprint page in Confluence storage format: an HTML macro that
-   * loads the viewer from the parent page (scp-view-macro.html in the PRD).
+   * loads the viewer from the parent page. Written into the page body, not as a file (PRD File Structure).
    */
   publish.macroBody = function (parentId) {
     var loader =

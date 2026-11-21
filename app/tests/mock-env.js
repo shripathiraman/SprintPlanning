@@ -289,8 +289,7 @@
 
   /* The planner's own files attached to the planning page, with their
      versions (scp-mock-code: { name: version }); served by the test server. */
-  var CODE = ['scp-planner.css', 'scp-calc.js', 'scp-jira.js', 'scp-store.js', 'scp-tab-config.js', 'scp-tab-tickets.js',
-    'scp-tab-resources.js', 'scp-tab-capacity.js', 'scp-tab-calendar.js', 'scp-publish.js', 'scp-app.js'];
+  var CODE = ['scp-planner.css', 'scp-planner.js'];
   function codeVersions() {
     var v;
     try { v = JSON.parse(localStorage.getItem('scp-mock-code') || 'null'); } catch (e) { v = null; }
